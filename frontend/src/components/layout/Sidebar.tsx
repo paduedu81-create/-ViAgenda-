@@ -52,7 +52,7 @@ export function Sidebar() {
                 </div>
 
                 {item.badge && (
-                  <span className="min-w-5 h-5 px-1.5 bg-[#EF4444] text-white text-[11px] font-bold rounded-full flex items-center justify-center">
+                  <span className="min-w-5 h-5 px-1.5 bg-priority-alta text-white text-[11px] font-bold rounded-full flex items-center justify-center">
                     {item.badge}
                   </span>
                 )}
