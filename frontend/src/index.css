@@ -1,8 +1,27 @@
 @import "tailwindcss";
 
 @theme {
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
   --font-inter: 'Inter', sans-serif;
   --font-plus: 'Plus Jakarta Sans', sans-serif;
+
+  /* Cores da Marca / Brand */
+  --color-brand-primary: #1D5BD8;
+  --color-brand-primary-hover: #1749AC;
+  --color-brand-light: #EFF6FF;
+  --color-brand-border: #BFDBFE;
+
+  /* Sidebar */
+  --color-sidebar-surface: #111C44;
+  --color-sidebar-hover: #172554;
+  --color-sidebar-active: #1D5BD8;
+  --color-sidebar-text: #94A3B8;
+  --color-sidebar-footer: #64748B;
+
+  /* Prioridades */
+  --color-priority-alta: #EF4444;
+  --color-priority-media: #F59E0B;
+  --color-priority-baixa: #10B981;
 }
 
 @layer base {
@@ -15,7 +34,7 @@
     padding: 0;
     background-color: #F8F9FC;
     color: #0F172A;
-    font-family: var(--font-sans);
+    font-family: var(--font-plus);
     -webkit-font-smoothing: antialiased;
   }
 

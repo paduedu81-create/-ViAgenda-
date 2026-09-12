@@ -1,13 +1,21 @@
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import AppLayout from './components/layout/AppLayout';
+import Dashboard from './pages/Dashboard';
 
 function App() {
-
   return (
-    <>
-      <div className="text-center">
-        ViAgenda
-      </div>
-    </>
-  )
+    <BrowserRouter>
+      <Routes>
+        <Route element={<AppLayout />}>
+          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/oportunidades" element={<Dashboard />} />
+          <Route path="/clientes" element={<Dashboard />} />
+          <Route path="/relatorios" element={<Dashboard />} />
+        </Route>
+      </Routes>
+    </BrowserRouter>
+  );
 }
 
-export default App
+export default App;
