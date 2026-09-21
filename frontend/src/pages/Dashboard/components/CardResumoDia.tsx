@@ -1,4 +1,5 @@
 import { Send } from "lucide-react";
+import { colors } from "../../../theme/colors";
 
 interface CardResumoDiaProps {
   data?: string;
@@ -9,7 +10,6 @@ interface CardResumoDiaProps {
   totalOportunidades: number;
 }
 
-
 export default function CardResumoDia({
   data,
   contatosConcluidos,
@@ -18,80 +18,119 @@ export default function CardResumoDia({
   totalBaixa,
   totalOportunidades
 }: CardResumoDiaProps) {
-
-
   return (
-    <div className="bg-[#0B132B] text-white rounded-3xl p-6 shadow-xl relative overflow-hidden select-none">
-
+    <div
+      style={{ backgroundColor: colors.sidebar.background }}
+      className="relative text-white rounded-3xl p-7 shadow-xl overflow-hidden select-none"
+    >
       {/* Topo: Título + Data + Ícone de Avião */}
       <div className="flex items-start justify-between">
         <div>
-          <span className="text-[10px] font-bold tracking-wider text-slate-400 uppercase">
+          <span
+            style={{ color: colors.sidebar.text }}
+            className="text-[10px] font-extrabold tracking-[0.14em] uppercase block"
+          >
             RESUMO DO DIA
           </span>
-          <p className="text-xs text-slate-300 font-medium mt-0.5">
+          <p
+            style={{ color: colors.header.roleText }}
+            className="text-[13px] font-medium mt-1"
+          >
             {data}
           </p>
         </div>
         {/* Ícone de aviãozinho */}
-        <div className="text-blue-500">
-          <Send size={22} className="rotate-[-10deg]" />
+        <div style={{ color: colors.brand.primary }}>
+          <Send size={24} className="rotate-[-10deg]" />
         </div>
       </div>
       {/* Contatos Concluídos Hoje */}
       <div className="mt-4">
-        <h3 className="text-4xl font-extrabold font-plus tracking-tight text-white">
+        <h3
+          style={{ color: colors.text.inverted }}
+          className="text-[42px] font-extrabold font-plus tracking-tight leading-none"
+        >
           {contatosConcluidos}
         </h3>
-        <p className="text-xs text-slate-300 mt-0.5">
+        <p
+          style={{ color: colors.sidebar.text }}
+          className="text-xs mt-1"
+        >
           contatos concluídos hoje
         </p>
       </div>
-      {/* Linha Divisória Tracejada com Efeito de Ticket (Recortes nas laterais) */}
-      <div className="relative my-5">
-        {/* Recorte circular esquerdo */}
-        <div className="absolute -left-8 top-1/2 -translate-y-1/2 w-4 h-4 bg-[#F8F9FC] rounded-full" />
 
-        {/* Linha pontilhada */}
-        <div className="border-b border-dashed border-slate-700/80 w-full" />
+      {/* Linha Divisória Tracejada com Efeito de Ticket (Recortes nas laterais) */}
+      <div className="relative my-6 flex items-center">
+        {/* Recorte circular esquerdo */}
+        <div className="absolute -left-8 w-6 h-6 rounded-full bg-[#F8F9FC] z-10"
+        />
+
+        {/* Linha tracejada do ticket */}
+        <div className="border-b-2 border-dashed border-white/20 w-full" />
 
         {/* Recorte circular direito */}
-        <div className="absolute -right-8 top-1/2 -translate-y-1/2 w-4 h-4 bg-[#F8F9FC] rounded-full" />
+        <div className="absolute -right-8 w-4 h-4 rounded-full bg-[#F8F9FC] z-10"
+        />
       </div>
+
       {/* Grid das 3 Caixas de Prioridade */}
-      <div className="grid grid-cols-3 gap-2.5">
+      <div className="grid grid-cols-3 gap-3">
         {/* ALTA */}
-        <div className="bg-[#131F3F]/70 rounded-2xl p-3 text-center border border-slate-800/50">
-          <p className="text-lg font-bold font-plus text-rose-400 leading-tight">
+        <div className="bg-white/5 border border-white/10 rounded-xl py-3 px-2 text-center">
+          <p
+            style={{ color: colors.priority.alta }}
+            className="text-xl font-extrabold font-plus leading-tight">
             {totalAlta}
           </p>
-          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mt-0.5">
+          <span
+            style={{ color: colors.sidebar.text }}
+            className="text-[10px] font-bold uppercase tracking-wider block mt-1"
+          >
             ALTA
           </span>
         </div>
+
         {/* MÉDIA */}
-        <div className="bg-[#131F3F]/70 rounded-2xl p-3 text-center border border-slate-800/50">
-          <p className="text-lg font-bold font-plus text-amber-400 leading-tight">
+        <div className="bg-white/5 border border-white/10 rounded-xl py-3 px-2 text-center">
+          <p
+            style={{ color: colors.priority.media }}
+            className="text-xl font-extrabold font-plus leading-tight"
+          >
             {totalMedia}
           </p>
-          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mt-0.5">
+          <span
+            style={{ color: colors.sidebar.text }}
+            className="text-[10px] font-bold uppercase tracking-wider block mt-1"
+          >
             MÉDIA
           </span>
         </div>
+
         {/* BAIXA */}
-        <div className="bg-[#131F3F]/70 rounded-2xl p-3 text-center border border-slate-800/50">
-          <p className="text-lg font-bold font-plus text-emerald-400 leading-tight">
+        <div className="bg-white/5 border border-white/10 rounded-xl py-3 px-2 text-center">
+          <p
+            style={{ color: colors.priority.baixa }}
+            className="text-xl font-extrabold font-plus leading-tight"
+          >
             {totalBaixa}
           </p>
-          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mt-0.5">
+          <span
+            style={{ color: colors.sidebar.text }}
+            className="text-[10px] font-bold uppercase tracking-wider block mt-1"
+          >
             BAIXA
           </span>
         </div>
       </div>
+
       {/* Rodapé: Total do Dia */}
-      <div className="flex items-center justify-between text-xs text-slate-400 pt-5 font-medium">
-        <span>Total do dia</span>
-        <span className="font-bold text-white">
+      <div className="flex items-center justify-between text-xs pt-5 font-medium">
+        <span style={{ color: colors.sidebar.text }}>Total do dia</span>
+        <span
+          style={{ color: colors.text.inverted }}
+          className="font-extrabold"
+        >
           {totalOportunidades} oportunidades
         </span>
       </div>

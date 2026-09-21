@@ -1,7 +1,9 @@
 import { CardOportunidade, type Oportunidade } from "./components/CardOportunidade";
 import CardResumoDia from "./components/CardResumoDia";
+import CardProximosContatos, { type ProximoContato } from "./components/CardProximosContatos";
 import MetricCard from "./components/MetricCard";
 import { ArrowRight, Users } from 'lucide-react'
+import { colors } from "../../theme/colors";
 
 export default function Dashboard() {
 
@@ -55,6 +57,33 @@ export default function Dashboard() {
   ];
 
 
+  const proximosContatosMock: ProximoContato[] = [
+    {
+      id: 1,
+      nomeCliente: 'Beatriz Souza',
+      tipo: 'Acompanhamento',
+      dia: '31',
+      mes: 'AGO',
+      horario: '10:00',
+    },
+    {
+      id: 2,
+      nomeCliente: 'Pedro Santos',
+      tipo: 'Pós-viagem',
+      dia: '1',
+      mes: 'SET',
+      horario: '14:00',
+    },
+    {
+      id: 3,
+      nomeCliente: 'Lucas Martins',
+      tipo: 'Nova oportunidade',
+      dia: '2',
+      mes: 'SET',
+      horario: '16:00',
+    },
+  ];
+
   return (
     <>
       <div className="flex gap-4">
@@ -62,24 +91,25 @@ export default function Dashboard() {
           icon={Users}
           value={67}
           label="Clientes ativos cadastrados"
+          color={colors.brand.primary}
         />
         <MetricCard
           icon={Users}
           value={67}
           label="Oportunidades abertas"
-          color="#D97706"
+          color={colors.priority.media}
         />
         <MetricCard
           icon={Users}
           value={67}
           label="Contatos para hoje"
-          color="#16A34A"
+          color={colors.priority.baixa}
         />
         <MetricCard
           icon={Users}
           value={67}
           label="Oportunidades alta prioridade"
-          color="#E11D48"
+          color={colors.priority.alta}
         />
       </div>
 
@@ -87,10 +117,16 @@ export default function Dashboard() {
 
         <div className="flex-1 bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
           <div className="flex items-center justify-between pb-4 border-b border-slate-100">
-            <h3 className="font-bold font-plus text-slate-900 text-base md:text-lg">
+            <h3
+              style={{ color: colors.text.primary }}
+              className="font-bold font-plus text-base md:text-lg"
+            >
               Oportunidades de hoje
             </h3>
-            <button className="text-xs font-semibold text-[#1D5BD8] hover:underline flex items-center gap-1 cursor-pointer">
+            <button
+              style={{ color: colors.brand.primary }}
+              className="text-xs font-semibold hover:underline flex items-center gap-1 cursor-pointer"
+            >
               Ver todas
               <ArrowRight size={14} />
             </button>
@@ -104,8 +140,9 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <div className="w-[320px] shrink-0 space-y-6">
+        <div className="w-140 shrink-0 space-y-6">
           <CardResumoDia {...resumoDiaMock} />
+          <CardProximosContatos contatos={proximosContatosMock} />
         </div>
       </div>
 
