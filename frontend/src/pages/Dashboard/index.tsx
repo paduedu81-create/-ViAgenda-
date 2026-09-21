@@ -2,7 +2,7 @@ import { CardOportunidade, type Oportunidade } from "./components/CardOportunida
 import CardResumoDia from "./components/CardResumoDia";
 import CardProximosContatos, { type ProximoContato } from "./components/CardProximosContatos";
 import MetricCard from "./components/MetricCard";
-import { ArrowRight, Users } from 'lucide-react'
+import { ArrowRight, Calendar, Target, Users, Activity } from 'lucide-react'
 import { colors } from "../../theme/colors";
 
 export default function Dashboard() {
@@ -94,19 +94,19 @@ export default function Dashboard() {
           color={colors.brand.primary}
         />
         <MetricCard
-          icon={Users}
+          icon={Target}
           value={67}
           label="Oportunidades abertas"
           color={colors.priority.media}
         />
         <MetricCard
-          icon={Users}
+          icon={Calendar}
           value={67}
           label="Contatos para hoje"
           color={colors.priority.baixa}
         />
         <MetricCard
-          icon={Users}
+          icon={Activity}
           value={67}
           label="Oportunidades alta prioridade"
           color={colors.priority.alta}
