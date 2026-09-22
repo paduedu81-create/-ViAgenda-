@@ -12,13 +12,27 @@ export default function Header() {
 
 
 
+  // função que pega saudação conforme o horário
+  const obterSaudacao = (): string => {
+    const hora = new Date().getHours();
+    if (hora >= 5 && hora < 12) {
+      return 'Bom dia';
+    }
+    if (hora >= 12 && hora < 18) {
+      return 'Boa tarde';
+    }
+    return 'Boa noite';
+  };
+
+  const saudacao = obterSaudacao();
+
   return (
     <header className="bg-white border-b border-slate-100 h-20 px-8 flex items-center justify-between shrink-0">
 
       {/* Saudação */}
       <div>
         <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-          Bom dia, Antônio! 👋
+          {saudacao}, Antônio! 👋
         </h2>
         <p className="text-xs text-slate-500 mt-0.5">
           Aqui estão as oportunidades que precisam da sua atenção hoje.

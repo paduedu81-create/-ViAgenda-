@@ -17,7 +17,7 @@ interface CardProximosContatosProps {
 }
 
 export function CardProximosContatos({
-  contatos,
+  contatos = [],
   onVerAgenda,
   onSelecionarContato,
 }: CardProximosContatosProps) {
