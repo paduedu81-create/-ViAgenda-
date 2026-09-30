@@ -1,9 +1,10 @@
-import { CardOportunidade, type Oportunidade } from "./components/CardOportunidade";
+import { CardOportunidade } from "./components/CardOportunidade";
 import CardResumoDia from "./components/CardResumoDia";
 import CardProximosContatos, { type ProximoContato } from "./components/CardProximosContatos";
 import MetricCard from "./components/MetricCard";
 import { ArrowRight, Calendar, Target, Users, Activity } from 'lucide-react'
 import { colors } from "../../theme/colors";
+import { oportunidadesMock } from "../../data/oportunidadesMock";
 
 export default function Dashboard() {
 
@@ -17,44 +18,6 @@ export default function Dashboard() {
   };
 
 
-  const oportunidadesMock: Oportunidade[] = [
-    {
-      id: 1,
-      iniciais: 'JD',
-      nomeCliente: 'João da Silva',
-      tipo: 'Pós-viagem',
-      prioridade: 'ALTA',
-      status: 'Aberta',
-      dataCriacao: '19/08/2026',
-      descricao: 'Cliente retornou recentemente de uma viagem e possui oportunidade de acompanhamento.',
-      ultimoContato: '25 dias atrás',
-      contatoSugerido: 'Hoje',
-    },
-    {
-      id: 2,
-      iniciais: 'BN',
-      nomeCliente: 'Beatriz Nunes',
-      tipo: 'Pós-viagem',
-      prioridade: 'MEDIA',
-      status: 'Aberta',
-      dataCriacao: '21/08/2026',
-      descricao: 'Retorno de Roma há mais de uma semana sem contato de acompanhamento.',
-      ultimoContato: '10 dias atrás',
-      contatoSugerido: 'Hoje',
-    },
-    {
-      id: 3,
-      iniciais: 'FL',
-      nomeCliente: 'Fernanda Lima',
-      tipo: 'Pós-viagem',
-      prioridade: 'BAIXA',
-      status: 'Aberta',
-      dataCriacao: '04/08/2026',
-      descricao: 'Cliente voltou de Paris — ótimo momento para oferecer o próximo destino.',
-      ultimoContato: '27 dias atrás',
-      contatoSugerido: 'Hoje',
-    },
-  ];
 
 
   const proximosContatosMock: ProximoContato[] = [

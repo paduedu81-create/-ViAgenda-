@@ -1,6 +1,6 @@
 import { Bell } from 'lucide-react';
 import { useState } from 'react';
-
+import { useLocation } from 'react-router-dom';
 
 export default function Header() {
 
@@ -10,6 +10,7 @@ export default function Header() {
     setModalBell(prev => !prev);
   }
 
+  const location = useLocation();
 
 
   // função que pega saudação conforme o horário
@@ -26,16 +27,44 @@ export default function Header() {
 
   const saudacao = obterSaudacao();
 
+  const getHeaderInfo = () => {
+    switch (location.pathname) {
+      case '/oportunidades':
+        return {
+          titulo: 'Oportunidades',
+          subtitulo: 'Todas as oportunidades comerciais identificadas pelo sistema.',
+        };
+      case '/clientes':
+        return {
+          titulo: 'Clientes',
+          subtitulo: 'Carteira completa de clientes cadastrados.',
+        };
+      case '/relatorios':
+        return {
+          titulo: 'Relatórios',
+          subtitulo: 'Relatórios pré-prontos. Escolha um período e gere o resultado.',
+        };
+      default: // esse é o do /dashboard
+        return {
+          titulo: `${saudacao}, Antônio! 👋`,
+          subtitulo: 'Aqui estão as oportunidades que precisam da sua atenção hoje.',
+        };
+    }
+  };
+
+  const { titulo, subtitulo } = getHeaderInfo();
+
+
   return (
     <header className="bg-white border-b border-slate-100 h-20 px-8 flex items-center justify-between shrink-0">
 
       {/* Saudação */}
       <div>
         <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-          {saudacao}, Antônio! 👋
+          {titulo}
         </h2>
         <p className="text-xs text-slate-500 mt-0.5">
-          Aqui estão as oportunidades que precisam da sua atenção hoje.
+          {subtitulo}
         </p>
       </div>
 

@@ -5,7 +5,7 @@ export interface Oportunidade {
   tipo: string; // 'Pós-viagem', 'Acompanhamento', 'Nova oportunidade'
   descricao: string;
   prioridade: 'ALTA' | 'MEDIA' | 'BAIXA';
-  status: 'Aberta' | 'Em andamento' | 'Concluída';
+  status: 'Aberta' | 'Em andamento' | 'Concluída' | 'Encerrada';
   dataCriacao: string;
   ultimoContato: string;
   contatoSugerido: string;
@@ -46,11 +46,13 @@ export function CardOportunidade({
     },
   }[oportunidade.prioridade];
 
-  const statusStyles = {
+  const statusStyles: Record<Oportunidade['status'], string> = {
     Aberta: 'bg-[#e8eefd] text-[#1d4ed8]',
     'Em andamento': 'bg-[#fdf3e2] text-[#d97706]',
     Concluída: 'bg-[#eef1f6] text-[#7c8aa0]',
-  }[oportunidade.status] || 'bg-[#eef1f6] text-[#7c8aa0]';
+    Encerrada: 'bg-[#eef1f6] text-[#7c8aa0]',
+  };
+  const estiloStatus = statusStyles[oportunidade.status] || 'bg-[#eef1f6] text-[#7c8aa0]';
 
   return (
     <div
@@ -72,7 +74,7 @@ export function CardOportunidade({
             {oportunidade.prioridade}
           </span>
 
-          <span className={`text-[10.5px] font-bold px-2 py-0.5 rounded-md ${statusStyles}`}>
+          <span className={`text-[10.5px] font-bold px-2 py-0.5 rounded-md ${estiloStatus}`}>
             {oportunidade.status}
           </span>
 
