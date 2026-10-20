@@ -4,7 +4,8 @@ import {
   Users,
   TrendingUp,
   Plane,
-  Send
+  Send,
+  LogOut
 } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 
@@ -32,20 +33,22 @@ export function Sidebar() {
         </div>
 
         {/* Menu de Navegação */}
-        <nav className="space-y-1.5">
+        <nav className="flex flex-col justify-between space-y-1.5">
+          <div>
+
           {navItems.map((item) => {
             const Icon = item.icon;
             return (
               <NavLink
-                key={item.path}
-                to={item.path}
-                className={({ isActive }) =>
-                  `flex items-center justify-between px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 ${isActive
+              key={item.path}
+              to={item.path}
+              className={({ isActive }) =>
+                `flex items-center justify-between px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 ${isActive
                     ? 'bg-[#1D5BD8] text-white shadow-lg shadow-blue-600/30 font-semibold'
                     : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
                   }`
                 }
-              >
+                >
                 <div className="flex items-center gap-3">
                   <Icon size={19} />
                   <span>{item.label}</span>
@@ -59,6 +62,12 @@ export function Sidebar() {
               </NavLink>
             );
           })}
+
+          <div className='flex items-center gap-3 px-4 py-3 rounded-xl cursor-pointer text-sm font-medium transition-all duration-200 text-slate-400 hover:text-white hover:bg-slate-800/50'>
+            <LogOut className='text-red-500'/>
+            <p className='text-red-500'>Sair</p>
+          </div>
+          </div>
         </nav>
       </div>
 
