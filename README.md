@@ -23,17 +23,16 @@ Resumo do papel do sistema: **o ViAgenda encontra, explica, lembra e registra; o
 
 **Front-end**
 
-- Next.js
 - React
+- Vite
 - TypeScript
 - Tailwind CSS
 
 **Back-end**
 
-- Java
-- Spring Data JPA / Hibernate
-- Swagger / Springdoc OpenAPI
-- IntelliJ IDEA (IDE)
+- NodeJS
+- JavaScript
+- Visual Studio Code
 
 **Banco de Dados**
 
