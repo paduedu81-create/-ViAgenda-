@@ -8,6 +8,7 @@ import {
   LogOut
 } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
+import { useAuth } from '../../contexts/useAuth';
 
 const navItems = [
   { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
@@ -17,6 +18,8 @@ const navItems = [
 ];
 
 export function Sidebar() {
+  const { logout } = useAuth();
+
   return (
     <aside className="w-64 bg-[#0B132B] text-slate-400 h-screen flex flex-col justify-between p-5 select-none shrink-0">
       <div>
@@ -36,37 +39,42 @@ export function Sidebar() {
         <nav className="flex flex-col justify-between space-y-1.5">
           <div>
 
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            return (
-              <NavLink
-              key={item.path}
-              to={item.path}
-              className={({ isActive }) =>
-                `flex items-center justify-between px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 ${isActive
-                    ? 'bg-[#1D5BD8] text-white shadow-lg shadow-blue-600/30 font-semibold'
-                    : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
-                  }`
-                }
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              return (
+                <NavLink
+                  key={item.path}
+                  to={item.path}
+                  className={({ isActive }) =>
+                    `flex items-center justify-between px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 ${isActive
+                      ? 'bg-[#1D5BD8] text-white shadow-lg shadow-blue-600/30 font-semibold'
+                      : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
+                    }`
+                  }
                 >
-                <div className="flex items-center gap-3">
-                  <Icon size={19} />
-                  <span>{item.label}</span>
-                </div>
+                  <div className="flex items-center gap-3">
+                    <Icon size={19} />
+                    <span>{item.label}</span>
+                  </div>
 
-                {item.badge && (
-                  <span className="min-w-5 h-5 px-1.5 bg-priority-alta text-white text-[11px] font-bold rounded-full flex items-center justify-center">
-                    {item.badge}
-                  </span>
-                )}
-              </NavLink>
-            );
-          })}
+                  {item.badge && (
+                    <span className="min-w-5 h-5 px-1.5 bg-priority-alta text-white text-[11px] font-bold rounded-full flex items-center justify-center">
+                      {item.badge}
+                    </span>
+                  )}
+                </NavLink>
+              );
+            })}
 
-          <div className='flex items-center gap-3 px-4 py-3 rounded-xl cursor-pointer text-sm font-medium transition-all duration-200 text-slate-400 hover:text-white hover:bg-slate-800/50'>
-            <LogOut className='text-red-500'/>
-            <p className='text-red-500'>Sair</p>
-          </div>
+            {/* botão de sair */}
+            <button
+              onClick={logout}
+              type="button"
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl cursor-pointer text-sm font-medium transition-all duration-200 text-slate-400 hover:text-rose-400 hover:bg-rose-950/20 mt-1"
+            >
+              <LogOut size={19} className="text-red-500" />
+              <span className="text-red-500 font-medium">Sair</span>
+            </button>
           </div>
         </nav>
       </div>
