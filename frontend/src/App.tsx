@@ -7,6 +7,7 @@ import Dashboard from './pages/Dashboard';
 import Oportunidades from './pages/Oportunidades';
 import Clientes from './pages/Clientes';
 import Relatorios from './pages/Relatorios';
+import ClienteDetalhes from './pages/ClienteDetalhes';
 
 function App() {
   return (
@@ -23,6 +24,7 @@ function App() {
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/oportunidades" element={<Oportunidades />} />
               <Route path="/clientes" element={<Clientes />} />
+              <Route path="/clientes/:id" element={<ClienteDetalhes />} />
               <Route path="/relatorios" element={<Relatorios />} />
             </Route>
           </Route>

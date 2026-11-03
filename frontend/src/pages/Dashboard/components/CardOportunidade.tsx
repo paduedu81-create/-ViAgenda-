@@ -1,5 +1,8 @@
+import { useNavigate } from "react-router-dom";
+
 export interface Oportunidade {
   id: string | number;
+  clienteId: number;
   iniciais: string;
   nomeCliente: string;
   tipo: string; // 'Pós-viagem', 'Acompanhamento', 'Nova oportunidade'
@@ -13,13 +16,11 @@ export interface Oportunidade {
 
 interface CardOportunidadeProps {
   oportunidade: Oportunidade;
-  onVerCliente?: (id: string | number) => void;
   onRegistrarContato?: (id: string | number) => void;
 }
 
 export function CardOportunidade({
   oportunidade,
-  onVerCliente,
   onRegistrarContato,
 }: CardOportunidadeProps) {
   const prioridadeStyles = {
@@ -53,6 +54,13 @@ export function CardOportunidade({
     Encerrada: 'bg-[#eef1f6] text-[#7c8aa0]',
   };
   const estiloStatus = statusStyles[oportunidade.status] || 'bg-[#eef1f6] text-[#7c8aa0]';
+
+  const navigate = useNavigate();
+
+  // navega para a ficha do cliente vinculado
+  const handleVerCliente = () => {
+    navigate(`/clientes/${oportunidade.clienteId}`);
+  };
 
   return (
     <div
@@ -117,7 +125,7 @@ export function CardOportunidade({
         {/* Linha de Botões (btn-row) */}
         <div className="flex items-center gap-2 mt-auto pt-3">
           <button
-            onClick={() => onVerCliente?.(oportunidade.id)}
+            onClick={handleVerCliente}
             className="rounded-[9px] border border-[#e6eaf1] bg-white px-3 py-1.5 text-[12.3px] font-bold text-[#0f1a2e] whitespace-nowrap hover:border-[#1d4ed8] hover:text-[#1d4ed8] transition-all cursor-pointer"
           >
             Ver cliente

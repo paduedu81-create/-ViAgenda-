@@ -2,8 +2,37 @@ import { useState } from 'react';
 import { Search, Plus, User, Phone, Mail, MapPin, Calendar, Clock, AlertCircle, X, Check } from 'lucide-react';
 import { clientesMock, type Cliente, type PerfilCliente } from '../../data/clientesMock';
 import { extrairIniciais, calcularDiasAtras } from '../../utils/formatters';
+import { useNavigate } from 'react-router-dom';
 
 type FiltroPrioridade = 'todas' | 'alta' | 'media' | 'baixa';
+
+// configuracao de cores e estilos por prioridade
+const prioridadeEstilos = {
+  alta: {
+    avatar: 'bg-red-50 text-red-500',
+    badge: 'bg-red-50 text-red-600',
+    dot: 'bg-red-500',
+    label: 'Alta',
+  },
+  media: {
+    avatar: 'bg-amber-50 text-amber-500',
+    badge: 'bg-amber-50 text-amber-600',
+    dot: 'bg-amber-500',
+    label: 'Média',
+  },
+  baixa: {
+    avatar: 'bg-emerald-50 text-emerald-500',
+    badge: 'bg-emerald-50 text-emerald-600',
+    dot: 'bg-emerald-500',
+    label: 'Baixa',
+  },
+  none: {
+    avatar: 'bg-purple-50 text-purple-500',
+    badge: '',
+    dot: '',
+    label: '—',
+  },
+};
 
 export default function Clientes() {
   // estado da lista de clientes
@@ -14,6 +43,8 @@ export default function Clientes() {
 
   // estado para o filtro de prioridade
   const [prioridadeAtiva, setPrioridadeAtiva] = useState<FiltroPrioridade>('todas');
+
+  const navigate = useNavigate();
 
   // estado para o cliente selecionado no modal de detalhes
   const [clienteDetalhes, setClienteDetalhes] = useState<Cliente | null>(null);
@@ -68,7 +99,8 @@ export default function Clientes() {
       name: novoNome.trim(),
       phone: novoTelefone.trim() || '(48) 99999-0000',
       email: novoEmail.trim() || `${novoNome.trim().toLowerCase().split(' ')[0]}@email.com`,
-      profile: novoPerfil,
+            profile: novoPerfil,
+      totalTrips: 0,
       lastTrip: null,
       nextTrip: novaProximaViagem.trim() || null,
       lastContact: '2026-08-30',
@@ -150,7 +182,6 @@ export default function Clientes() {
                 <th className="py-3.5 px-4">Último contato</th>
                 <th className="py-3.5 px-4">Prioridade</th>
                 <th className="py-3.5 px-4">Oportunidade</th>
-                <th className="py-3.5 px-4 text-right">Ação</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-sm">
@@ -168,12 +199,13 @@ export default function Clientes() {
                 clientesFiltrados.map((cliente) => (
                   <tr
                     key={cliente.id}
-                    className="hover:bg-slate-50/70 transition-colors group"
+                    className="hover:bg-slate-50/70 cursor-pointer transition-colors group"
+                    onClick={() => navigate(`/clientes/${cliente.id}`)}
                   >
                     {/* coluna de cliente com avatar e responsável */}
                     <td className="py-3.5 px-4 sm:px-6">
                       <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-xl bg-blue-50 text-brand-primary font-bold text-xs flex items-center justify-center shrink-0 border border-blue-100/60 shadow-xs">
+                        <div className={`w-9 h-9 rounded-full font-bold text-xs flex items-center justify-center shrink-0 ${prioridadeEstilos[cliente.priority].avatar}`}>
                           {extrairIniciais(cliente.name)}
                         </div>
                         <div>
@@ -219,20 +251,10 @@ export default function Clientes() {
                         <span className="text-slate-300 font-bold">—</span>
                       ) : (
                         <span
-                          className={`inline-flex items-center gap-1.5 text-xs font-semibold ${cliente.priority === 'alta'
-                            ? 'text-red-600'
-                            : cliente.priority === 'media'
-                              ? 'text-amber-600'
-                              : 'text-emerald-600'
-                            }`}
+                          className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold ${cliente.priority === 'alta' ? 'text-red-600 bg-red-50' : cliente.priority === 'media' ? 'text-amber-600 bg-amber-50' : 'text-emerald-600 bg-emerald-50'}`}
                         >
                           <span
-                            className={`w-2 h-2 rounded-full ${cliente.priority === 'alta'
-                              ? 'bg-red-500'
-                              : cliente.priority === 'media'
-                                ? 'bg-amber-500'
-                                : 'bg-emerald-500'
-                              }`}
+                            className={`w-1.5 h-1.5 rounded-full ${cliente.priority === 'alta' ? 'bg-red-500' : cliente.priority === 'media' ? 'bg-amber-500' : 'bg-emerald-500'}`}
                           />
                           {cliente.priority === 'alta'
                             ? 'Alta'
@@ -253,16 +275,6 @@ export default function Clientes() {
                         <span className="text-slate-300 font-bold">—</span>
                       )}
                     </td>
-
-                    {/* ação */}
-                    <td className="py-3.5 px-4 text-right">
-                      <button
-                        onClick={() => setClienteDetalhes(cliente)}
-                        className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-semibold text-slate-700 hover:text-brand-primary hover:border-brand-primary hover:bg-blue-50/30 transition-all cursor-pointer shadow-xs"
-                      >
-                        Ver
-                      </button>
-                    </td>
                   </tr>
                 ))
               )}
@@ -278,7 +290,7 @@ export default function Clientes() {
             {/* cabeçalho do modal */}
             <div className="flex items-center justify-between p-5 border-b border-slate-100">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-blue-50 text-brand-primary font-bold text-sm flex items-center justify-center border border-blue-100">
+                <div className={`w-10 h-10 rounded-full font-bold text-sm flex items-center justify-center shrink-0 ${prioridadeEstilos[clienteDetalhes.priority].avatar}`}>
                   {extrairIniciais(clienteDetalhes.name)}
                 </div>
                 <div>

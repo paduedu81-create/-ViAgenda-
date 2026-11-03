@@ -4,6 +4,7 @@ import type { Oportunidade } from '../pages/Dashboard/components/CardOportunidad
 export const oportunidadesMock: Oportunidade[] = [
   {
     id: 101,
+    clienteId: 1,
     iniciais: 'JD',
     nomeCliente: 'João da Silva',
     tipo: 'Pós-viagem',
@@ -16,6 +17,7 @@ export const oportunidadesMock: Oportunidade[] = [
   },
   {
     id: 102,
+    clienteId: 2,
     iniciais: 'MO',
     nomeCliente: 'Maria Oliveira',
     tipo: 'Acompanhamento',
@@ -28,6 +30,7 @@ export const oportunidadesMock: Oportunidade[] = [
   },
   {
     id: 103,
+    clienteId: 5,
     iniciais: 'PS',
     nomeCliente: 'Pedro Santos',
     tipo: 'Pré-viagem',
@@ -40,6 +43,7 @@ export const oportunidadesMock: Oportunidade[] = [
   },
   {
     id: 104,
+    clienteId: 6,
     iniciais: 'LM',
     nomeCliente: 'Lucas Martins',
     tipo: 'Nova oportunidade',
@@ -52,6 +56,7 @@ export const oportunidadesMock: Oportunidade[] = [
   },
   {
     id: 105,
+    clienteId: 3,
     iniciais: 'CS',
     nomeCliente: 'Carlos Souza',
     tipo: 'Nova oportunidade',
@@ -64,6 +69,7 @@ export const oportunidadesMock: Oportunidade[] = [
   },
   {
     id: 106,
+    clienteId: 7,
     iniciais: 'BN',
     nomeCliente: 'Beatriz Nunes',
     tipo: 'Pós-viagem',
@@ -76,6 +82,7 @@ export const oportunidadesMock: Oportunidade[] = [
   },
   {
     id: 107,
+    clienteId: 8,
     iniciais: 'RC',
     nomeCliente: 'Rafael Costa',
     tipo: 'Nova oportunidade',
@@ -88,6 +95,7 @@ export const oportunidadesMock: Oportunidade[] = [
   },
   {
     id: 108,
+    clienteId: 9,
     iniciais: 'CR',
     nomeCliente: 'Camila Rocha',
     tipo: 'Pré-viagem',
@@ -100,6 +108,7 @@ export const oportunidadesMock: Oportunidade[] = [
   },
   {
     id: 109,
+    clienteId: 11,
     iniciais: 'FL',
     nomeCliente: 'Fernanda Lima',
     tipo: 'Pós-viagem',
@@ -112,6 +121,7 @@ export const oportunidadesMock: Oportunidade[] = [
   },
   {
     id: 110,
+    clienteId: 12,
     iniciais: 'GR',
     nomeCliente: 'Gustavo Ramos',
     tipo: 'Nova oportunidade',
@@ -124,6 +134,7 @@ export const oportunidadesMock: Oportunidade[] = [
   },
   {
     id: 111,
+    clienteId: 13,
     iniciais: 'JA',
     nomeCliente: 'Juliana Alves',
     tipo: 'Pré-viagem',
@@ -136,6 +147,7 @@ export const oportunidadesMock: Oportunidade[] = [
   },
   {
     id: 112,
+    clienteId: 15,
     iniciais: 'PG',
     nomeCliente: 'Patrícia Gomes',
     tipo: 'Pós-viagem',
@@ -148,6 +160,7 @@ export const oportunidadesMock: Oportunidade[] = [
   },
   {
     id: 113,
+    clienteId: 16,
     iniciais: 'RB',
     nomeCliente: 'Rodrigo Barbosa',
     tipo: 'Acompanhamento',
@@ -160,6 +173,7 @@ export const oportunidadesMock: Oportunidade[] = [
   },
   {
     id: 114,
+    clienteId: 17,
     iniciais: 'TM',
     nomeCliente: 'Tatiana Moreira',
     tipo: 'Nova oportunidade',
@@ -172,6 +186,7 @@ export const oportunidadesMock: Oportunidade[] = [
   },
   {
     id: 115,
+    clienteId: 18,
     iniciais: 'VC',
     nomeCliente: 'Vinícius Cardoso',
     tipo: 'Pré-viagem',
@@ -184,6 +199,7 @@ export const oportunidadesMock: Oportunidade[] = [
   },
   {
     id: 116,
+    clienteId: 19,
     iniciais: 'LF',
     nomeCliente: 'Larissa Farias',
     tipo: 'Pós-viagem',
@@ -196,6 +212,7 @@ export const oportunidadesMock: Oportunidade[] = [
   },
   {
     id: 117,
+    clienteId: 21,
     iniciais: 'SC',
     nomeCliente: 'Simone Castro',
     tipo: 'Pré-viagem',
@@ -208,6 +225,7 @@ export const oportunidadesMock: Oportunidade[] = [
   },
   {
     id: 118,
+    clienteId: 24,
     iniciais: 'BA',
     nomeCliente: 'Bruno Azevedo',
     tipo: 'Acompanhamento',

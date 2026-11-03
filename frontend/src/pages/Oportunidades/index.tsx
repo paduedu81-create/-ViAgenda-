@@ -96,7 +96,7 @@ export default function Oportunidades() {
             value={busca}
             onChange={(e) => setBusca(e.target.value)}
             placeholder="Buscar por cliente ou tipo de oportunidade..."
-            className="w-full bg-white border border-slate-200 rounded-xl pl-10 pr-4 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-brand-primary focus:ring-1 focus:ring-brand-primary transition-all shadow-sm"
+            className="w-full bg-white border rounded-xl pl-10 pr-4 py-2 text-sm placeholder:text-slate-400 focus:outline-none focus:border-brand-primary focus:ring-1 focus:ring-brand-primary transition-all shadow-sm"
           />
         </div>
 
@@ -127,7 +127,6 @@ export default function Oportunidades() {
             <CardOportunidade
               key={op.id}
               oportunidade={op}
-              onVerCliente={(id) => console.log('ver cliente', id)}
               onRegistrarContato={(id) => console.log('registrar contato', id)}
             />
           ))
