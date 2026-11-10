@@ -1,2 +1,42 @@
-import {Request,Response,NextFunction} from 'express';import {ZodError} from 'zod';import {AppError} from '../utils/errors';
-export function errorHandler(e:unknown,_req:Request,res:Response,_next:NextFunction){if(e instanceof ZodError)return res.status(400).json({error:'Dados inválidos',details:e.flatten()});if(e instanceof AppError)return res.status(e.statusCode).json({error:e.message,details:e.details});const pg=e as any;if(pg?.code==='23505')return res.status(409).json({error:'Já existe um registro com esses dados'});if(['23503','23514','22P02','22007','22008'].includes(pg?.code))return res.status(400).json({error:'Dados incompatíveis com o banco'});console.error(e);return res.status(500).json({error:'Erro interno do servidor'})}
+import { Request, Response, NextFunction } from 'express';
+import { ZodError } from 'zod';
+import { AppError } from '../utils/errors';
+
+export function errorHandler(
+  e: unknown,
+  _req: Request,
+  res: Response,
+  _next: NextFunction
+) {
+  if (e instanceof ZodError) {
+    return res.status(400).json({
+      error: 'Dados inválidos',
+      details: e.flatten(),
+    });
+  }
+
+  if (e instanceof AppError) {
+    return res.status(e.statusCode).json({
+      error: e.message,
+      details: e.details,
+    });
+  }
+
+  const pg = e as any;
+  if (pg?.code === '23505') {
+    return res.status(409).json({
+      error: 'Já existe um registro com esses dados',
+    });
+  }
+
+  if (['23503', '23514', '22P02', '22007', '22008'].includes(pg?.code)) {
+    return res.status(400).json({
+      error: 'Dados incompatíveis com o banco',
+    });
+  }
+
+  console.error(e);
+  return res.status(500).json({
+    error: 'Erro interno do servidor',
+  });
+}

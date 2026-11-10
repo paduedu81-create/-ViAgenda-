@@ -31,4 +31,7 @@ async function main() {
   console.log('Reinicie o backend para carregar as novas credenciais.');
 }
 
-main().catch((error) => { console.error(error.message ?? error); process.exit(1); });
+main().catch((error) => {
+  console.error(error.message ?? error);
+  process.exit(1);
+});

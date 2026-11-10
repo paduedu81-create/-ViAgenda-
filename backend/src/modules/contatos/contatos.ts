@@ -1,5 +1,82 @@
-import {Router} from 'express';import {z} from 'zod';import {query} from '../../database/pool';import {asyncHandler} from '../../utils/asyncHandler';import {validateBody} from '../../middlewares/validate';import {AppError} from '../../utils/errors';
-const router=Router();const schema=z.object({id_cliente:z.number().int().positive(),id_oportunidade:z.number().int().positive().nullable().optional(),canal:z.enum(['WhatsApp','Telefone','E-mail','Presencial']),mensagem:z.string().min(1).max(5000),resultado:z.string().max(500).nullable().optional(),data_contato:z.string().datetime().optional()});
-router.get('/',asyncHandler(async(req,res)=>{const id=String(req.query.id_cliente||'');const r=await query("SELECT ct.*,c.nome_cliente,v.nome vendedor FROM contato ct JOIN cliente c USING(id_cliente) LEFT JOIN vendedor v USING(id_vendedor) WHERE ($1='' OR ct.id_cliente=$1::int) ORDER BY ct.data_contato DESC LIMIT 500",[id]);res.json(r.rows)}));
-router.post('/',validateBody(schema),asyncHandler(async(req,res)=>{const b=req.body;const r=await query('INSERT INTO contato(id_cliente,id_oportunidade,id_vendedor,canal,mensagem,resultado,data_contato) VALUES($1,$2,$3,$4,$5,$6,coalesce($7::timestamptz,now())) RETURNING *',[b.id_cliente,b.id_oportunidade||null,req.user?.id||null,b.canal,b.mensagem,b.resultado||null,b.data_contato||null]);res.status(201).json(r.rows[0])}));
-router.post('/:id_oportunidade/registrar',validateBody(schema.omit({id_oportunidade:true})),asyncHandler(async(req,res)=>{const id=Number(req.params.id_oportunidade);const exists=await query('SELECT id_oportunidade FROM oportunidade WHERE id_oportunidade=$1',[id]);if(!exists.rows[0])throw new AppError(404,'Oportunidade não encontrada');const b=req.body;const r=await query('INSERT INTO contato(id_cliente,id_oportunidade,id_vendedor,canal,mensagem,resultado,data_contato) VALUES($1,$2,$3,$4,$5,$6,coalesce($7::timestamptz,now())) RETURNING *',[b.id_cliente,id,req.user?.id||null,b.canal,b.mensagem,b.resultado||null,b.data_contato||null]);res.status(201).json(r.rows[0])}));export default router;
+import { Router } from 'express';
+import { z } from 'zod';
+import { query } from '../../database/pool';
+import { asyncHandler } from '../../utils/asyncHandler';
+import { validateBody } from '../../middlewares/validate';
+import { AppError } from '../../utils/errors';
+
+const router = Router();
+
+const schema = z.object({
+  id_cliente: z.number().int().positive(),
+  id_oportunidade: z.number().int().positive().nullable().optional(),
+  canal: z.enum(['WhatsApp', 'Telefone', 'E-mail', 'Presencial']),
+  mensagem: z.string().min(1).max(5000),
+  resultado: z.string().max(500).nullable().optional(),
+  data_contato: z.string().datetime().optional(),
+});
+
+router.get(
+  '/',
+  asyncHandler(async (req, res) => {
+    const id = String(req.query.id_cliente || '');
+    const r = await query(
+      "SELECT ct.*, c.nome_cliente, v.nome vendedor FROM contato ct JOIN cliente c USING(id_cliente) LEFT JOIN vendedor v USING(id_vendedor) WHERE ($1='' OR ct.id_cliente=$1::int) ORDER BY ct.data_contato DESC LIMIT 500",
+      [id]
+    );
+    res.json(r.rows);
+  })
+);
+
+router.post(
+  '/',
+  validateBody(schema),
+  asyncHandler(async (req, res) => {
+    const b = req.body;
+    const r = await query(
+      'INSERT INTO contato(id_cliente, id_oportunidade, id_vendedor, canal, mensagem, resultado, data_contato) VALUES($1, $2, $3, $4, $5, $6, coalesce($7::timestamptz, now())) RETURNING *',
+      [
+        b.id_cliente,
+        b.id_oportunidade || null,
+        req.user?.id || null,
+        b.canal,
+        b.mensagem,
+        b.resultado || null,
+        b.data_contato || null,
+      ]
+    );
+    res.status(201).json(r.rows[0]);
+  })
+);
+
+router.post(
+  '/:id_oportunidade/registrar',
+  validateBody(schema.omit({ id_oportunidade: true })),
+  asyncHandler(async (req, res) => {
+    const id = Number(req.params.id_oportunidade);
+    const exists = await query('SELECT id_oportunidade FROM oportunidade WHERE id_oportunidade=$1', [
+      id,
+    ]);
+
+    if (!exists.rows[0]) {
+      throw new AppError(404, 'Oportunidade não encontrada');
+    }
+
+    const b = req.body;
+    const r = await query(
+      'INSERT INTO contato(id_cliente, id_oportunidade, id_vendedor, canal, mensagem, resultado, data_contato) VALUES($1, $2, $3, $4, $5, $6, coalesce($7::timestamptz, now())) RETURNING *',
+      [
+        b.id_cliente,
+        id,
+        req.user?.id || null,
+        b.canal,
+        b.mensagem,
+        b.resultado || null,
+        b.data_contato || null,
+      ]
+    );
+    res.status(201).json(r.rows[0]);
+  })
+);
+
+export default router;
