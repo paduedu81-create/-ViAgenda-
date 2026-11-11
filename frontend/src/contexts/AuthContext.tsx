@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { usuariosMock, type Usuario } from '../data/usuariosMock';
+import { type Usuario } from '../data/usuariosMock';
 import { AuthContext } from './authContextDef';
+import { api } from '../services/api';
 
 const CHAVE_STORAGE = '@viagenda:auth';
 
@@ -21,32 +22,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = async (email: string, senha: string): Promise<{ sucesso: boolean; mensagem?: string }> => {
     setCarregando(true);
 
-    // simulando um delay de internet
-    await new Promise((resolve) => setTimeout(resolve, 800));
+    try {
+      const data = await api<{ token: string; usuario: Usuario }>('/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({ email, senha })
+      })
 
-    const emailTratado = email.trim().toLowerCase();
-    const usuarioEncontrado = usuariosMock.find(
-      (user) => user.email.toLowerCase() === emailTratado && user.senha === senha
-    );
+      localStorage.setItem('@viagenda:token', data.token);
+      localStorage.setItem(CHAVE_STORAGE, JSON.stringify(data.usuario));
+      setUsuario(data.usuario)
 
-    setCarregando(false);
-
-    if (usuarioEncontrado) {
-      setUsuario(usuarioEncontrado);
-      localStorage.setItem(CHAVE_STORAGE, JSON.stringify(usuarioEncontrado));
       return { sucesso: true };
+    } catch (error: any) {
+      return {
+        sucesso: false,
+        mensagem: error?.message || 'Falha ao autenticar'
+      };
+    } finally {
+      setCarregando(false);
     }
-
-    return {
-      sucesso: false,
-      mensagem: 'E-mail ou senha incorretos. Verifique suas credenciais.',
-    };
   };
 
   // encerra a sessão do usuário
   const logout = () => {
     setUsuario(null);
     localStorage.removeItem(CHAVE_STORAGE);
+    localStorage.removeItem('@viagenda:token')
   };
 
   return (
