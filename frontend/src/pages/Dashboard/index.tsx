@@ -1,4 +1,5 @@
 import { CardOportunidade } from "./components/CardOportunidade";
+import { useNavigate } from 'react-router-dom';
 import CardResumoDia from "./components/CardResumoDia";
 import CardProximosContatos, { type ProximoContato } from "./components/CardProximosContatos";
 import MetricCard from "./components/MetricCard";
@@ -7,6 +8,7 @@ import { colors } from "../../theme/colors";
 import { oportunidadesMock } from "../../data/oportunidadesMock";
 
 export default function Dashboard() {
+  const navigate = useNavigate();
 
   const resumoDiaMock = {
     data: '30 de agosto de 2026 · domingo',
@@ -87,6 +89,7 @@ export default function Dashboard() {
               Oportunidades de hoje
             </h3>
             <button
+              onClick={() => navigate('/oportunidades')}
               style={{ color: colors.brand.primary }}
               className="text-xs font-semibold hover:underline flex items-center gap-1 cursor-pointer"
             >

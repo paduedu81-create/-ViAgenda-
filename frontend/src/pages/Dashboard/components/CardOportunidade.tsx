@@ -1,4 +1,6 @@
 import { useNavigate } from "react-router-dom";
+import { useState } from 'react';
+import { api } from '../../../services/api';
 
 export interface Oportunidade {
   id: string | number;
@@ -23,6 +25,18 @@ export function CardOportunidade({
   oportunidade,
   onRegistrarContato,
 }: CardOportunidadeProps) {
+  const [modalContato, setModalContato] = useState(false);
+  const [canal, setCanal] = useState('');
+  const [salvando, setSalvando] = useState(false);
+  const [erroContato, setErroContato] = useState('');
+  const [contatoFeito, setContatoFeito] = useState(() => {
+    try {
+      const feitos = JSON.parse(localStorage.getItem('@viagenda:contatos-feitos') || '[]') as string[];
+      return feitos.includes(String(oportunidade.id));
+    } catch {
+      return false;
+    }
+  });
   const prioridadeStyles = {
     ALTA: {
       borda: 'border-l-[#e11d48]',
@@ -60,6 +74,32 @@ export function CardOportunidade({
   // navega para a ficha do cliente vinculado
   const handleVerCliente = () => {
     navigate(`/clientes/${oportunidade.clienteId}`);
+  };
+
+  const registrarContato = async () => {
+    if (!canal) return;
+    setSalvando(true);
+    setErroContato('');
+    try {
+      await api(`/contatos/${oportunidade.id}/registrar`, {
+        method: 'POST',
+        body: JSON.stringify({
+          id_cliente: oportunidade.clienteId,
+          canal,
+          mensagem: `Contato realizado via ${canal}.`,
+          resultado: 'Contato feito',
+        }),
+      });
+      setContatoFeito(true);
+      const feitos = JSON.parse(localStorage.getItem('@viagenda:contatos-feitos') || '[]') as string[];
+      localStorage.setItem('@viagenda:contatos-feitos', JSON.stringify([...new Set([...feitos, String(oportunidade.id)])]));
+      setModalContato(false);
+      onRegistrarContato?.(oportunidade.id);
+    } catch (error) {
+      setErroContato(error instanceof Error ? error.message : 'Não foi possível registrar o contato.');
+    } finally {
+      setSalvando(false);
+    }
   };
 
   return (
@@ -132,13 +172,32 @@ export function CardOportunidade({
           </button>
 
           <button
-            onClick={() => onRegistrarContato?.(oportunidade.id)}
-            className="rounded-[9px] border border-[#1d4ed8] bg-[#1d4ed8] px-3.5 py-1.5 text-[12.3px] font-bold text-white whitespace-nowrap hover:bg-[#1439a3] hover:border-[#1439a3] transition-all cursor-pointer shadow-sm"
+            onClick={() => !contatoFeito && setModalContato(true)}
+            disabled={contatoFeito}
+            className={`rounded-[9px] border px-3.5 py-1.5 text-[12.3px] font-bold whitespace-nowrap transition-all shadow-sm ${contatoFeito ? 'border-emerald-600 bg-emerald-600 text-white cursor-not-allowed' : 'border-[#1d4ed8] bg-[#1d4ed8] text-white hover:bg-[#1439a3] hover:border-[#1439a3] cursor-pointer'}`}
           >
-            Registrar contato
+            {contatoFeito ? 'Contato feito!' : 'Registrar contato'}
           </button>
         </div>
       </div>
+      {modalContato && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setModalContato(false); }}>
+          <section role="dialog" aria-modal="true" aria-labelledby={`contato-titulo-${oportunidade.id}`} className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
+            <h2 id={`contato-titulo-${oportunidade.id}`} className="text-lg font-bold text-slate-900">Registrar contato</h2>
+            <p className="mt-1 text-sm text-slate-500">Como o contato com {oportunidade.nomeCliente} foi realizado?</p>
+            <div className="mt-5 grid grid-cols-2 gap-2">
+              {['WhatsApp', 'E-mail', 'Telefone', 'Presencial'].map((opcao) => (
+                <button key={opcao} type="button" onClick={() => setCanal(opcao)} className={`rounded-lg border px-3 py-2.5 text-sm font-semibold ${canal === opcao ? 'border-blue-700 bg-blue-50 text-blue-700' : 'border-slate-200 text-slate-700 hover:border-blue-300'}`}>{opcao}</button>
+              ))}
+            </div>
+            {erroContato && <p role="alert" className="mt-3 text-sm text-red-600">{erroContato}</p>}
+            <div className="mt-6 flex justify-end gap-2">
+              <button type="button" onClick={() => setModalContato(false)} className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600">Cancelar</button>
+              <button type="button" onClick={registrarContato} disabled={!canal || salvando} className="rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50">{salvando ? 'Salvando...' : 'Confirmar contato'}</button>
+            </div>
+          </section>
+        </div>
+      )}
     </div>
   );
 }

@@ -4,14 +4,14 @@ import CardOportunidade from '../Dashboard/components/CardOportunidade';
 import CardPrioridade from './components/CardPrioridade';
 import { oportunidadesMock } from '../../data/oportunidadesMock';
 
-type FiltroStatus = 'todas' | 'aberta' | 'andamento' | 'encerrada';
+type FiltroPrioridade = 'todas' | 'ALTA' | 'MEDIA' | 'BAIXA';
 
 export default function Oportunidades() {
   // estado para o texto de busca
   const [busca, setBusca] = useState('');
 
-  // estado para o filtro de status selecionado
-  const [statusAtivo, setStatusAtivo] = useState<FiltroStatus>('todas');
+  const [prioridadeAtiva, setPrioridadeAtiva] = useState<FiltroPrioridade>('todas');
+  const [tipoAtivo, setTipoAtivo] = useState('todos');
 
   // cálculo dos totais por prioridade
   const totalAlta = oportunidadesMock.filter((op) => op.prioridade === 'ALTA').length;
@@ -37,7 +37,9 @@ export default function Oportunidades() {
     },
   ];
 
-  // lista filtrada por busca e status, ordenada por prioridade
+  const tiposOportunidade = [...new Set(oportunidadesMock.map((op) => op.tipo))];
+
+  // lista filtrada por texto, tipo de oportunidade e prioridade
   const oportunidadesFiltradas = useMemo(() => {
     const termo = busca.trim().toLowerCase();
 
@@ -45,12 +47,8 @@ export default function Oportunidades() {
 
     return oportunidadesMock
       .filter((op) => {
-        // filtro de status
-        const bateStatus =
-          statusAtivo === 'todas' ||
-          (statusAtivo === 'aberta' && op.status === 'Aberta') ||
-          (statusAtivo === 'andamento' && op.status === 'Em andamento') ||
-          (statusAtivo === 'encerrada' && op.status === 'Encerrada');
+        const batePrioridade = prioridadeAtiva === 'todas' || op.prioridade === prioridadeAtiva;
+        const bateTipo = tipoAtivo === 'todos' || op.tipo === tipoAtivo;
 
         // filtro de texto de busca
         const bateBusca =
@@ -59,17 +57,16 @@ export default function Oportunidades() {
           op.tipo.toLowerCase().includes(termo) ||
           op.descricao.toLowerCase().includes(termo);
 
-        return bateStatus && bateBusca;
+        return batePrioridade && bateTipo && bateBusca;
       })
       .sort((a, b) => ordemPrioridade[a.prioridade] - ordemPrioridade[b.prioridade]);
-  }, [busca, statusAtivo]);
+  }, [busca, prioridadeAtiva, tipoAtivo]);
 
-  // opções de filtros de status
-  const opcoesFiltro: { id: FiltroStatus; label: string }[] = [
+  const opcoesFiltro: { id: FiltroPrioridade; label: string }[] = [
     { id: 'todas', label: 'Todas' },
-    { id: 'aberta', label: 'Aberta' },
-    { id: 'andamento', label: 'Em andamento' },
-    { id: 'encerrada', label: 'Encerrada' },
+    { id: 'ALTA', label: 'Alta' },
+    { id: 'MEDIA', label: 'Média' },
+    { id: 'BAIXA', label: 'Baixa' },
   ];
 
   return (
@@ -86,8 +83,8 @@ export default function Oportunidades() {
         ))}
       </div>
 
-      {/* barra de busca e filtros de status */}
-      <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
+      {/* busca e filtros de oportunidade e prioridade */}
+      <div className="flex flex-col gap-3">
         {/* campo de busca */}
         <div className="relative flex-1 min-w-60">
           <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
@@ -100,14 +97,18 @@ export default function Oportunidades() {
           />
         </div>
 
-        {/* botões de filtro por status */}
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex flex-wrap items-center gap-2">
+          <label className="sr-only" htmlFor="filtro-tipo">Filtrar por oportunidade</label>
+          <select id="filtro-tipo" value={tipoAtivo} onChange={(e) => setTipoAtivo(e.target.value)} className="rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-600">
+            <option value="todos">Todas as oportunidades</option>
+            {tiposOportunidade.map((tipo) => <option key={tipo} value={tipo}>{tipo}</option>)}
+          </select>
           {opcoesFiltro.map((filtro) => {
-            const isAtivo = statusAtivo === filtro.id;
+            const isAtivo = prioridadeAtiva === filtro.id;
             return (
               <button
                 key={filtro.id}
-                onClick={() => setStatusAtivo(filtro.id)}
+                onClick={() => setPrioridadeAtiva(filtro.id)}
                 className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer select-none border ${isAtivo
                   ? 'bg-brand-primary text-white border-brand-primary shadow-sm'
                   : 'bg-white text-slate-500 border-slate-200 hover:border-brand-primary hover:text-brand-primary'
@@ -138,7 +139,7 @@ export default function Oportunidades() {
               Nenhuma oportunidade encontrada
             </p>
             <p className="text-xs text-slate-500 mt-0.5">
-              Tente alterar os termos da busca ou os filtros de status selecionados.
+              Tente alterar os termos da busca ou os filtros selecionados.
             </p>
           </div>
         )}
