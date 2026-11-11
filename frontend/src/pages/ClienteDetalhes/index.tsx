@@ -1,9 +1,10 @@
 import { useParams, Link } from 'react-router-dom';
-import { clientesMock } from '../../data/clientesMock';
+import { type Cliente } from '../../data/clientesMock';
 import { oportunidadesMock } from '../../data/oportunidadesMock';
 import { ArrowLeft, UserX, Phone, Mail, User, Plus, Plane, CreditCard, Star } from 'lucide-react';
 import { extrairIniciais, calcularDiasAtras } from '../../utils/formatters';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { api } from '../../services/api';
 import {
   historicoMock,
   viagensMock,
@@ -53,8 +54,10 @@ function Timeline({ itens }: { itens: EventoHistorico[] }) {
 export default function ClienteDetalhes() {
   const { id } = useParams();
 
-  // busca o cliente correspondente pelo id da URL
-  const cliente = clientesMock.find((c) => c.id === Number(id));
+  // estado do cliente carregado da api
+  const [cliente, setCliente] = useState<Cliente | null>(null);
+  // estado de carregamento
+  const [carregando, setCarregando] = useState(true);
 
   // busca os detalhes da oportunidade vinculada ao cliente
   const oportunidade = oportunidadesMock.find((o) => o.clienteId === cliente?.id);
@@ -62,12 +65,53 @@ export default function ClienteDetalhes() {
   // estado da aba atualmente selecionada
   const [abaAtiva, setAbaAtiva] = useState<AbaDetalhes>('visao360');
 
+  // carrega os dados reais do cliente pelo id
+  useEffect(() => {
+    if (!id) return;
+    setCarregando(true);
+
+    api<any>(`/clientes/${id}`)
+      .then((data) => {
+        // mapeia os dados do cliente retornado pelo backend
+        const cli: Cliente = {
+          id: data.id_cliente,
+          name: data.nome_cliente,
+          phone: data.telefone || '—',
+          email: data.email || '—',
+          profile: 'Família',
+          totalTrips: Array.isArray(data.viagens) ? data.viagens.length : 0,
+          lastTrip: data.viagens?.[0]?.destino || null,
+          nextTrip: null,
+          lastContact: data.contatos?.[0]?.data_contato ? String(data.contatos[0].data_contato).slice(0, 10) : 'Sem contato',
+          priority: data.tipo_situacao === 'orcamento_aberto' ? 'alta' : data.tipo_situacao === 'ja_atendido' ? 'media' : 'none',
+          opportunity: data.tipo_situacao === 'orcamento_aberto' ? 'Orçamento em aberto' : null,
+          registeredAt: data.data_cadastro ? String(data.data_cadastro).slice(0, 10) : '',
+        };
+        setCliente(cli);
+      })
+      .catch((err) => {
+        console.error('erro ao carregar detalhes do cliente:', err);
+        setCliente(null);
+      })
+      .finally(() => setCarregando(false));
+  }, [id]);
+
   const abas: { id: AbaDetalhes; label: string }[] = [
     { id: 'visao360', label: 'Visão 360°' },
     { id: 'historico', label: 'Histórico' },
     { id: 'viagens', label: 'Viagens' },
     { id: 'contatos', label: 'Contatos' },
   ];
+
+  // tela de carregamento enquanto busca na api
+  if (carregando) {
+    return (
+      <div className="bg-white border border-slate-200 rounded-2xl p-16 text-center flex flex-col items-center justify-center gap-3">
+        <div className="w-8 h-8 border-3 border-brand-primary border-t-transparent rounded-full animate-spin" />
+        <p className="text-sm font-medium text-slate-600">Carregando detalhes do cliente...</p>
+      </div>
+    );
+  }
 
   // se o id não existir na base de dados
   if (!cliente) {

@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Search, Plus, User, Phone, Mail, MapPin, Calendar, Clock, AlertCircle, X, Check } from 'lucide-react';
-import { clientesMock, type Cliente, type PerfilCliente } from '../../data/clientesMock';
+import { type Cliente, type PerfilCliente } from '../../data/clientesMock';
 import { extrairIniciais, calcularDiasAtras } from '../../utils/formatters';
 import { useNavigate } from 'react-router-dom';
+import { api } from '../../services/api';
 
 type FiltroPrioridade = 'todas' | 'alta' | 'media' | 'baixa';
 
@@ -36,7 +37,10 @@ const prioridadeEstilos = {
 
 export default function Clientes() {
   // estado da lista de clientes
-  const [clientes, setClientes] = useState<Cliente[]>(clientesMock);
+  const [clientes, setClientes] = useState<Cliente[]>([]);
+
+  // estado de carregamento
+  const [carregando, setCarregando] = useState(true);
 
   // estado para o texto de busca
   const [busca, setBusca] = useState('');
@@ -45,6 +49,35 @@ export default function Clientes() {
   const [prioridadeAtiva, setPrioridadeAtiva] = useState<FiltroPrioridade>('todas');
 
   const navigate = useNavigate();
+
+  useEffect(() => {
+    setCarregando(true);
+    const termo = encodeURIComponent(busca.trim());
+    api<{ dados: any[] }>(`/clientes?busca=${termo}`)
+      .then((res) => {
+
+        // mapeia os campos do backend para a interface Cliente da tela
+        const listaMapeada: Cliente[] = (res.dados || []).map((cli) => ({
+          id: cli.id_cliente,
+          name: cli.nome_cliente,
+          phone: cli.telefone || '—',
+          email: cli.email || '—',
+          profile: 'Família',
+          totalTrips: cli.total_viagens || 0,
+          lastTrip: cli.ultima_viagem || null,
+          nextTrip: cli.proxima_viagem || null,
+          lastContact: cli.ultimo_contato ? cli.ultimo_contato.slice(0, 10) : 'Sem contato',
+          priority: cli.tipo_situacao === 'orcamento_aberto' ? 'alta' : cli.tipo_situacao === 'ja_atendido' ? 'media' : 'none',
+          opportunity: cli.tipo_situacao === 'orcamento_aberto' ? 'Orçamento em aberto' : null,
+          registeredAt: cli.data_cadastro ? cli.data_cadastro.slice(0, 10) : '',
+        }));
+        setClientes(listaMapeada);
+      })
+      .catch((err) => {
+        console.error('erro ao buscar clientes:', err);
+      })
+      .finally(() => setCarregando(false));
+  }, [busca]);
 
   // estado para o cliente selecionado no modal de detalhes
   const [clienteDetalhes, setClienteDetalhes] = useState<Cliente | null>(null);
@@ -99,7 +132,7 @@ export default function Clientes() {
       name: novoNome.trim(),
       phone: novoTelefone.trim() || '(48) 99999-0000',
       email: novoEmail.trim() || `${novoNome.trim().toLowerCase().split(' ')[0]}@email.com`,
-            profile: novoPerfil,
+      profile: novoPerfil,
       totalTrips: 0,
       lastTrip: null,
       nextTrip: novaProximaViagem.trim() || null,
@@ -185,7 +218,16 @@ export default function Clientes() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-sm">
-              {clientesFiltrados.length === 0 ? (
+              {carregando ? (
+                <tr>
+                  <td colSpan={9} className="py-12 text-center text-slate-500">
+                    <div className="flex flex-col items-center justify-center gap-2">
+                      <div className="w-6 h-6 border-2 border-brand-primary border-t-transparent rounded-full animate-spin" />
+                      <p className="text-sm font-medium text-slate-600">Carregando clientes...</p>
+                    </div>
+                  </td>
+                </tr>
+              ) : clientesFiltrados.length === 0 ? (
                 <tr>
                   <td colSpan={9} className="py-12 text-center text-slate-500">
                     <div className="flex flex-col items-center justify-center gap-2">
