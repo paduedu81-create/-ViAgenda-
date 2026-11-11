@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Search, Plus, User, Phone, Mail, MapPin, Calendar, Clock, AlertCircle, X, Check } from 'lucide-react';
-import { type Cliente, type PerfilCliente } from '../../data/clientesMock';
 import { extrairIniciais, calcularDiasAtras } from '../../utils/formatters';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../../services/api';
+import type { Cliente, ClienteApi, ClientesApiResponse, PerfilCliente } from './clientes.types';
 
 type FiltroPrioridade = 'todas' | 'alta' | 'media' | 'baixa';
 
@@ -53,16 +53,16 @@ export default function Clientes() {
   useEffect(() => {
     setCarregando(true);
     const termo = encodeURIComponent(busca.trim());
-    api<{ dados: any[] }>(`/clientes?busca=${termo}`)
+    api<ClientesApiResponse>(`/clientes?busca=${termo}`)
       .then((res) => {
 
         // mapeia os campos do backend para a interface Cliente da tela
-        const listaMapeada: Cliente[] = (res.dados || []).map((cli) => ({
+        const listaMapeada: Cliente[] = (res.dados || []).map((cli: ClienteApi) => ({
           id: cli.id_cliente,
           name: cli.nome_cliente,
           phone: cli.telefone || '—',
           email: cli.email || '—',
-          profile: 'Família',
+          profile: (cli.perfil as PerfilCliente) || 'Solo',
           totalTrips: cli.total_viagens || 0,
           lastTrip: cli.ultima_viagem || null,
           nextTrip: cli.proxima_viagem || null,
