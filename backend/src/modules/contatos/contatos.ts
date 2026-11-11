@@ -54,20 +54,36 @@ router.post(
   validateBody(schema.omit({ id_oportunidade: true })),
   asyncHandler(async (req, res) => {
     const id = Number(req.params.id_oportunidade);
-    const exists = await query('SELECT id_oportunidade FROM oportunidade WHERE id_oportunidade=$1', [
-      id,
-    ]);
+    const b = req.body;
+    const opportunity = await query(
+      'SELECT id_oportunidade, id_cliente FROM oportunidade WHERE id_oportunidade=$1',
+      [id]
+    );
 
-    if (!exists.rows[0]) {
-      throw new AppError(404, 'Oportunidade não encontrada');
+    // As oportunidades exibidas nesta versão ainda vêm de dados de demonstração.
+    // Se o ID não existir no banco, registra o contato pelo cliente real e sem vínculo à oportunidade fictícia.
+    let idCliente: number;
+    let idOportunidade: number | null;
+    if (opportunity.rows[0]) {
+      idCliente = opportunity.rows[0].id_cliente;
+      idOportunidade = opportunity.rows[0].id_oportunidade;
+    } else {
+      const client = await query(
+        'SELECT id_cliente FROM cliente WHERE id_cliente=$1 AND ativo=true',
+        [b.id_cliente]
+      );
+      if (!client.rows[0]) {
+        throw new AppError(404, 'Cliente não encontrado para registrar o contato');
+      }
+      idCliente = client.rows[0].id_cliente;
+      idOportunidade = null;
     }
 
-    const b = req.body;
     const r = await query(
       'INSERT INTO contato(id_cliente, id_oportunidade, id_vendedor, canal, mensagem, resultado, data_contato) VALUES($1, $2, $3, $4, $5, $6, coalesce($7::timestamptz, now())) RETURNING *',
       [
-        b.id_cliente,
-        id,
+        idCliente,
+        idOportunidade,
         req.user?.id || null,
         b.canal,
         b.mensagem,
