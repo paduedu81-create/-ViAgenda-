@@ -12,7 +12,7 @@ import { useAuth } from '../../contexts/useAuth';
 
 const navItems = [
   { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
-  { label: 'Oportunidades', path: '/oportunidades', icon: Target, badge: 16 },
+  { label: 'Oportunidades', path: '/oportunidades', icon: Target },
   { label: 'Clientes', path: '/clientes', icon: Users },
   { label: 'Relatórios', path: '/relatorios', icon: TrendingUp },
 ];
@@ -57,11 +57,6 @@ export function Sidebar() {
                     <span>{item.label}</span>
                   </div>
 
-                  {item.badge && (
-                    <span className="min-w-5 h-5 px-1.5 bg-priority-alta text-white text-[11px] font-bold rounded-full flex items-center justify-center">
-                      {item.badge}
-                    </span>
-                  )}
                 </NavLink>
               );
             })}
