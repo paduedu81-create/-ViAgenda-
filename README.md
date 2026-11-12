@@ -31,7 +31,8 @@ Resumo do papel do sistema: **o ViAgenda encontra, explica, lembra e registra; o
 **Back-end**
 
 - NodeJS
-- JavaScript
+- TypeScript
+- Express
 - Visual Studio Code
 
 **Banco de Dados**
