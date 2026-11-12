@@ -1,20 +1,8 @@
 import { useNavigate } from "react-router-dom";
 import { useState } from 'react';
 import { api } from '../../../services/api';
+import type { Oportunidade } from "../../Oportunidades/oportunidades.types";
 
-export interface Oportunidade {
-  id: string | number;
-  clienteId: number;
-  iniciais: string;
-  nomeCliente: string;
-  tipo: string; // 'Pós-viagem', 'Acompanhamento', 'Nova oportunidade'
-  descricao: string;
-  prioridade: 'ALTA' | 'MEDIA' | 'BAIXA';
-  status: 'Aberta' | 'Em andamento' | 'Concluída' | 'Encerrada';
-  dataCriacao: string;
-  ultimoContato: string;
-  contatoSugerido: string;
-}
 
 interface CardOportunidadeProps {
   oportunidade: Oportunidade;

@@ -1,4 +1,4 @@
-import type { Oportunidade } from '../pages/Dashboard/components/CardOportunidade';
+import type { Oportunidade } from "../pages/Oportunidades/oportunidades.types";
 
 // lista completa de oportunidades mockadas do sistema
 export const oportunidadesMock: Oportunidade[] = [

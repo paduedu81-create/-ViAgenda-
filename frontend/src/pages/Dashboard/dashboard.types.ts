@@ -22,22 +22,3 @@ export interface DashboardApiResponse {
   metricas: MetricasDashboard;
   proximos_contatos: ProximoContatoApi[];
 }
-
-// tipagem do item retornado pelo endpoint GET /api/oportunidades
-export interface OportunidadeApi {
-  id_oportunidade: number;
-  id_cliente: number;
-  id_viagem_referencia: number | null;
-  data_geracao: string;
-  status_oportunidade: 'ativa' | 'em_andamento' | 'encerrada';
-  ciclo_recorrencia: number;
-  data_encerramento: string | null;
-  tipo_origem: 'pos_viagem' | 'fim_pagamento' | 'manual' | null;
-  descricao: string | null;
-  data_proximo_contato: string | null;
-  nome_cliente: string;
-  telefone: string | null;
-  email: string | null;
-  data_retorno: string | null;
-  nome_destino: string | null;
-}

@@ -1,4 +1,4 @@
-import { CardOportunidade, type Oportunidade } from "./components/CardOportunidade";
+import { CardOportunidade } from "./components/CardOportunidade";
 import { useNavigate } from 'react-router-dom';
 import CardResumoDia from "./components/CardResumoDia";
 import CardProximosContatos, { type ProximoContato } from "./components/CardProximosContatos";
@@ -7,7 +7,8 @@ import { ArrowRight, Calendar, Target, Users, Activity } from 'lucide-react'
 import { colors } from "../../theme/colors";
 import { useEffect, useState } from "react";
 import { api } from "../../services/api";
-import type { DashboardApiResponse, OportunidadeApi } from "./dashboard.types";
+import type { DashboardApiResponse } from "./dashboard.types";
+import type { Oportunidade, OportunidadeApi } from "../Oportunidades/oportunidades.types";
 
 export default function Dashboard() {
   const navigate = useNavigate();

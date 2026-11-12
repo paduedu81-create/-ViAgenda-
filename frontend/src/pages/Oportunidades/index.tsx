@@ -1,8 +1,9 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Search } from 'lucide-react';
 import CardOportunidade from '../Dashboard/components/CardOportunidade';
 import CardPrioridade from './components/CardPrioridade';
-import { oportunidadesMock } from '../../data/oportunidadesMock';
+import { api } from '../../services/api';
+import type { Oportunidade, OportunidadeApi } from './oportunidades.types';
 
 type FiltroPrioridade = 'todas' | 'ALTA' | 'MEDIA' | 'BAIXA';
 
@@ -13,10 +14,15 @@ export default function Oportunidades() {
   const [prioridadeAtiva, setPrioridadeAtiva] = useState<FiltroPrioridade>('todas');
   const [tipoAtivo, setTipoAtivo] = useState('todos');
 
+  const tiposOportunidade = ['Pós-viagem', 'Fim de pagamento', 'Acompanhamento'];
+
+  const [oportunidades, setOportunidades] = useState<Oportunidade[]>([]);
+  const [carregando, setCarregando] = useState<boolean>(true);
+
   // cálculo dos totais por prioridade
-  const totalAlta = oportunidadesMock.filter((op) => op.prioridade === 'ALTA').length;
-  const totalMedia = oportunidadesMock.filter((op) => op.prioridade === 'MEDIA').length;
-  const totalBaixa = oportunidadesMock.filter((op) => op.prioridade === 'BAIXA').length;
+  const totalAlta = oportunidades.filter((op) => op.prioridade === 'ALTA').length;
+  const totalMedia = oportunidades.filter((op) => op.prioridade === 'MEDIA').length;
+  const totalBaixa = oportunidades.filter((op) => op.prioridade === 'BAIXA').length;
 
   // lista de cards do topo usando classes de prioridade do tema
   const cardsPrioridade = [
@@ -37,7 +43,27 @@ export default function Oportunidades() {
     },
   ];
 
-  const tiposOportunidade = [...new Set(oportunidadesMock.map((op) => op.tipo))];
+  useEffect(() => {
+    api<OportunidadeApi[]>('/oportunidades').then((dados) => {
+      const listaMapeada: Oportunidade[] = (dados || []).map((op) => ({
+        id: op.id_oportunidade,
+        clienteId: op.id_cliente,
+        iniciais: op.nome_cliente.slice(0, 2).toUpperCase(),
+        nomeCliente: op.nome_cliente,
+        tipo: op.tipo_origem === 'pos_viagem' ? 'Pós-viagem' : op.tipo_origem === 'fim_pagamento' ? 'Fim de pagamento' : 'Acompanhamento',
+        descricao: op.descricao || '',
+        prioridade: op.tipo_origem === 'pos_viagem' ? 'ALTA' : 'MEDIA',
+        status: op.status_oportunidade === 'ativa' ? 'Aberta' : 'Em andamento',
+        dataCriacao: op.data_geracao ? op.data_geracao.slice(0, 10) : '',
+        ultimoContato: 'Sem contato',
+        contatoSugerido: op.tipo_origem === 'pos_viagem' ? 'WhatsApp pós-viagem' : 'Ligação comercial',
+      }));
+      setOportunidades(listaMapeada);
+
+    })
+      .catch((erro) => console.error("Erro ao carregar oportunidades:", erro))
+      .finally(() => setCarregando(false))
+  }, [])
 
   // lista filtrada por texto, tipo de oportunidade e prioridade
   const oportunidadesFiltradas = useMemo(() => {
@@ -45,7 +71,7 @@ export default function Oportunidades() {
 
     const ordemPrioridade = { ALTA: 0, MEDIA: 1, BAIXA: 2 };
 
-    return oportunidadesMock
+    return oportunidades
       .filter((op) => {
         const batePrioridade = prioridadeAtiva === 'todas' || op.prioridade === prioridadeAtiva;
         const bateTipo = tipoAtivo === 'todos' || op.tipo === tipoAtivo;
@@ -60,7 +86,7 @@ export default function Oportunidades() {
         return batePrioridade && bateTipo && bateBusca;
       })
       .sort((a, b) => ordemPrioridade[a.prioridade] - ordemPrioridade[b.prioridade]);
-  }, [busca, prioridadeAtiva, tipoAtivo]);
+  }, [oportunidades, busca, prioridadeAtiva, tipoAtivo]);
 
   const opcoesFiltro: { id: FiltroPrioridade; label: string }[] = [
     { id: 'todas', label: 'Todas' },
@@ -68,6 +94,15 @@ export default function Oportunidades() {
     { id: 'MEDIA', label: 'Média' },
     { id: 'BAIXA', label: 'Baixa' },
   ];
+
+  if (carregando) {
+    return (
+      <div className="flex flex-col items-center justify-center p-24 gap-3 bg-white rounded-2xl border border-slate-100 shadow-sm">
+        <div className="w-8 h-8 border-3 border-brand-primary border-t-transparent rounded-full animate-spin" />
+        <p className="text-sm font-medium text-slate-500">Carregando oportunidades...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-5">
