@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <defs>
+    <linearGradient id="brandGrad" x1="0" y1="0" x2="64" y2="64" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#2563EB" />
+      <stop offset="100%" stop-color="#1D4ED8" />
+    </linearGradient>
+  </defs>
+  
+  <!-- fundo arredondado com a cor oficial da marca -->
+  <rect width="64" height="64" rx="16" fill="url(#brandGrad)" />
+  
+  <!-- aviãozinho de papel / envio do ViAgenda (estilizado do Send icon) -->
+  <g transform="translate(32, 33) rotate(-20) translate(-32, -32)">
+    <path
+      d="M14 32L50 16L34 52L27 37L14 32Z"
+      fill="white"
+      stroke="white"
+      stroke-width="2.5"
+      stroke-linejoin="round"
+    />
+    <path
+      d="M50 16L27 37"
+      stroke="#1D4ED8"
+      stroke-width="2.5"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    />
+  </g>
+</svg>
+
