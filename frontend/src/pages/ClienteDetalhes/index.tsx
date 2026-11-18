@@ -1,21 +1,60 @@
 import { useParams, Link } from 'react-router-dom';
-import { type Cliente } from '../../data/clientesMock';
-import { oportunidadesMock } from '../../data/oportunidadesMock';
-import { ArrowLeft, UserX, Phone, Mail, User, Plus, Plane, CreditCard, Star } from 'lucide-react';
+import { ArrowLeft, UserX, Phone, Mail, User, Plus, Plane, CreditCard, Star, X } from 'lucide-react';
 import { extrairIniciais, calcularDiasAtras } from '../../utils/formatters';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { api } from '../../services/api';
-import {
-  historicoMock,
-  viagensMock,
-  contatosDetalheMock,
-  type EventoHistorico,
-} from '../../data/clienteDetalhesMock';
+import type { Cliente, PerfilCliente, PrioridadeCliente } from '../Clientes/clientes.types';
+import type { OportunidadeApi } from '../Oportunidades/oportunidades.types';
 
 type AbaDetalhes = 'visao360' | 'historico' | 'viagens' | 'contatos';
 
+export interface EventoHistorico {
+  id: string | number;
+  data: string;
+  titulo: string;
+  descricao: string;
+  tipo: 'viagem' | 'contato' | 'pagamento';
+}
+
+export interface ViagemItem {
+  id_viagem: number;
+  id_destino?: number | null;
+  destino?: string | null;
+  data_ida: string;
+  data_retorno: string;
+  valor_total: number | string;
+  status_viagem: string;
+}
+
+export interface ContatoItem {
+  id_contato: number;
+  id_cliente: number;
+  id_oportunidade?: number | null;
+  id_vendedor?: number | null;
+  canal: 'WhatsApp' | 'Telefone' | 'E-mail' | 'Presencial';
+  mensagem: string;
+  resultado?: string | null;
+  data_contato: string;
+  vendedor?: string;
+}
+
+export interface InteresseItem {
+  id_interesse: number;
+  id_destino: number;
+  nome_destino: string;
+  descricao_interesse?: string | null;
+}
+
 // componente reutilizavel de linha do tempo
 function Timeline({ itens }: { itens: EventoHistorico[] }) {
+  if (itens.length === 0) {
+    return (
+      <p className="text-xs text-slate-400 py-6 text-center">
+        Nenhum evento registrado no histórico deste cliente.
+      </p>
+    );
+  }
+
   return (
     <div className="relative flex flex-col gap-6">
       {/* linha vertical conectora dos eventos */}
@@ -51,50 +90,167 @@ function Timeline({ itens }: { itens: EventoHistorico[] }) {
   );
 }
 
+// formata data iso para formato brasileiro
+function formatarDataBR(dataIso?: string | null): string {
+  if (!dataIso) return '—';
+  const data = new Date(dataIso);
+  if (isNaN(data.getTime())) return dataIso;
+  return data.toLocaleDateString('pt-BR', { timeZone: 'UTC' });
+}
+
+// formata valor em moeda brasileira
+function formatarMoeda(valor?: number | string | null): string {
+  if (valor === undefined || valor === null || valor === '') return 'R$ 0,00';
+  const num = typeof valor === 'string' ? parseFloat(valor) : valor;
+  if (isNaN(num)) return 'R$ 0,00';
+  return num.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+}
+
 export default function ClienteDetalhes() {
   const { id } = useParams();
 
   // estado do cliente carregado da api
   const [cliente, setCliente] = useState<Cliente | null>(null);
+  const [viagens, setViagens] = useState<ViagemItem[]>([]);
+  const [contatos, setContatos] = useState<ContatoItem[]>([]);
+  const [interesses, setInteresses] = useState<InteresseItem[]>([]);
+  const [oportunidadeDescricao, setOportunidadeDescricao] = useState<string | null>(null);
+
   // estado de carregamento
   const [carregando, setCarregando] = useState(true);
-
-  // busca os detalhes da oportunidade vinculada ao cliente
-  const oportunidade = oportunidadesMock.find((o) => o.clienteId === cliente?.id);
 
   // estado da aba atualmente selecionada
   const [abaAtiva, setAbaAtiva] = useState<AbaDetalhes>('visao360');
 
-  // carrega os dados reais do cliente pelo id
-  useEffect(() => {
+  // estado para modal de registrar contato
+  const [modalContato, setModalContato] = useState(false);
+  const [canalContato, setCanalContato] = useState<'WhatsApp' | 'Telefone' | 'E-mail' | 'Presencial'>('WhatsApp');
+  const [mensagemContato, setMensagemContato] = useState('');
+  const [resultadoContato, setResultadoContato] = useState('');
+  const [salvandoContato, setSalvandoContato] = useState(false);
+  const [erroContato, setErroContato] = useState('');
+
+  // busca os dados reais do cliente e suas oportunidades na api
+  const carregarCliente = useCallback(async () => {
     if (!id) return;
     setCarregando(true);
 
-    api<any>(`/clientes/${id}`)
-      .then((data) => {
-        // mapeia os dados do cliente retornado pelo backend
-        const cli: Cliente = {
-          id: data.id_cliente,
-          name: data.nome_cliente,
-          phone: data.telefone || '—',
-          email: data.email || '—',
-          profile: 'Família',
-          totalTrips: Array.isArray(data.viagens) ? data.viagens.length : 0,
-          lastTrip: data.viagens?.[0]?.destino || null,
-          nextTrip: null,
-          lastContact: data.contatos?.[0]?.data_contato ? String(data.contatos[0].data_contato).slice(0, 10) : 'Sem contato',
-          priority: data.tipo_situacao === 'orcamento_aberto' ? 'alta' : data.tipo_situacao === 'ja_atendido' ? 'media' : 'none',
-          opportunity: data.tipo_situacao === 'orcamento_aberto' ? 'Orçamento em aberto' : null,
-          registeredAt: data.data_cadastro ? String(data.data_cadastro).slice(0, 10) : '',
-        };
-        setCliente(cli);
-      })
-      .catch((err) => {
-        console.error('erro ao carregar detalhes do cliente:', err);
-        setCliente(null);
-      })
-      .finally(() => setCarregando(false));
+    try {
+      const [dataCli, ops] = await Promise.all([
+        api<any>(`/clientes/${id}`),
+        api<OportunidadeApi[]>('/oportunidades').catch(() => []),
+      ]);
+
+      const listaViagens: ViagemItem[] = Array.isArray(dataCli.viagens) ? dataCli.viagens : [];
+      const listaContatos: ContatoItem[] = Array.isArray(dataCli.contatos) ? dataCli.contatos : [];
+      const listaInteresses: InteresseItem[] = Array.isArray(dataCli.interesses) ? dataCli.interesses : [];
+
+      setViagens(listaViagens);
+      setContatos(listaContatos);
+      setInteresses(listaInteresses);
+
+      // localiza se ha oportunidade ativa vinculada ao cliente
+      const opAtiva = ops.find((o) => o.id_cliente === Number(id));
+      if (opAtiva) {
+        setOportunidadeDescricao(opAtiva.descricao || 'Oportunidade comercial em aberto para acompanhamento.');
+      } else {
+        setOportunidadeDescricao(null);
+      }
+
+      // mapeia informacoes consolidadas do cliente
+      const prioridade: PrioridadeCliente =
+        dataCli.tipo_situacao === 'orcamento_aberto'
+          ? 'alta'
+          : dataCli.tipo_situacao === 'ja_atendido'
+          ? 'media'
+          : 'none';
+
+      const ultimaViagemNome = listaViagens[0]?.destino || null;
+      const ultimoContatoData = listaContatos[0]?.data_contato
+        ? String(listaContatos[0].data_contato).slice(0, 10)
+        : 'Sem contato';
+
+      const cli: Cliente = {
+        id: dataCli.id_cliente,
+        name: dataCli.nome_cliente,
+        phone: dataCli.telefone || '—',
+        email: dataCli.email || '—',
+        profile: (dataCli.perfil as PerfilCliente) || 'Família',
+        totalTrips: listaViagens.length,
+        lastTrip: ultimaViagemNome,
+        nextTrip: null,
+        lastContact: ultimoContatoData,
+        priority: prioridade,
+        opportunity: opAtiva ? opAtiva.descricao || 'Oportunidade identificada' : null,
+        registeredAt: dataCli.data_cadastro ? String(dataCli.data_cadastro).slice(0, 10) : '',
+      };
+
+      setCliente(cli);
+    } catch (err) {
+      console.error('erro ao carregar detalhes do cliente:', err);
+      setCliente(null);
+    } finally {
+      setCarregando(false);
+    }
   }, [id]);
+
+  useEffect(() => {
+    carregarCliente();
+  }, [carregarCliente]);
+
+  // submete novo contato diretamente para a api
+  const handleRegistrarContato = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!id || !canalContato) return;
+
+    setSalvandoContato(true);
+    setErroContato('');
+
+    try {
+      await api('/contatos', {
+        method: 'POST',
+        body: JSON.stringify({
+          id_cliente: Number(id),
+          canal: canalContato,
+          mensagem: mensagemContato.trim() || `Contato realizado via ${canalContato}.`,
+          resultado: resultadoContato.trim() || null,
+        }),
+      });
+
+      setModalContato(false);
+      setMensagemContato('');
+      setResultadoContato('');
+      await carregarCliente();
+    } catch (err: any) {
+      setErroContato(err?.message || 'Falha ao registrar contato');
+    } finally {
+      setSalvandoContato(false);
+    }
+  };
+
+  // monta lista combinada de eventos para a linha do tempo
+  const eventosLinhaDoTempo: EventoHistorico[] = [
+    ...viagens.map((v) => ({
+      id: `viagem-${v.id_viagem}`,
+      data: formatarDataBR(v.data_ida),
+      titulo: `Viagem: ${v.destino || 'Destino a definir'}`,
+      descricao: `Status: ${v.status_viagem} • Ida: ${formatarDataBR(v.data_ida)} • Retorno: ${formatarDataBR(
+        v.data_retorno
+      )} • Valor: ${formatarMoeda(v.valor_total)}`,
+      tipo: 'viagem' as const,
+      timestamp: new Date(v.data_ida).getTime(),
+    })),
+    ...contatos.map((c) => ({
+      id: `contato-${c.id_contato}`,
+      data: formatarDataBR(c.data_contato),
+      titulo: `Contato via ${c.canal}`,
+      descricao: `${c.mensagem}${c.resultado ? ` (Resultado: ${c.resultado})` : ''}`,
+      tipo: 'contato' as const,
+      timestamp: new Date(c.data_contato).getTime(),
+    })),
+  ]
+    .sort((a, b) => b.timestamp - a.timestamp)
+    .map(({ timestamp: _, ...evento }) => evento);
 
   const abas: { id: AbaDetalhes; label: string }[] = [
     { id: 'visao360', label: 'Visão 360°' },
@@ -221,15 +377,17 @@ export default function ClienteDetalhes() {
                   <User size={13} className="text-slate-400" />
                   {cliente.profile}
                 </span>
-                <span>
-                  Resp: <strong className="text-slate-700 font-semibold">Antônio</strong>
-                </span>
+                {interesses.length > 0 && (
+                  <span className="text-slate-500">
+                    Interesses: <strong className="text-slate-700 font-semibold">{interesses.map(i => i.nome_destino).join(', ')}</strong>
+                  </span>
+                )}
               </div>
             </div>
           </div>
 
           <button
-            onClick={() => console.log('registrar contato', cliente.id)}
+            onClick={() => setModalContato(true)}
             className="inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-brand-primary text-white text-xs font-semibold rounded-xl hover:bg-brand-primary-hover transition-colors shadow-xs shrink-0 cursor-pointer"
           >
             <Plus size={14} />
@@ -263,17 +421,18 @@ export default function ClienteDetalhes() {
           </div>
         </div>
 
-        {/* destaque de oportunidade identificada com estrela e descricao completa */}
-        <div className={`mt-5 p-4 rounded-xl border ${prioridadeConfig.oportunidadeBox}`}>
-          <div className="flex items-center gap-2 font-bold text-sm">
-            <Star size={16} className={prioridadeConfig.estrela} />
-            <span>Oportunidade identificada</span>
+        {/* destaque de oportunidade identificada */}
+        {oportunidadeDescricao && (
+          <div className={`mt-5 p-4 rounded-xl border ${prioridadeConfig.oportunidadeBox}`}>
+            <div className="flex items-center gap-2 font-bold text-sm">
+              <Star size={16} className={prioridadeConfig.estrela} />
+              <span>Oportunidade identificada</span>
+            </div>
+            <p className="text-xs text-slate-600 mt-1 leading-relaxed">
+              {oportunidadeDescricao}
+            </p>
           </div>
-          <p className="text-xs text-slate-600 mt-1 leading-relaxed">
-            {oportunidade?.descricao ||
-              'Cliente retornou recentemente de uma viagem e possui oportunidade de acompanhamento.'}
-          </p>
-        </div>
+        )}
       </div>
 
       {/* seletor de abas */}
@@ -302,29 +461,35 @@ export default function ClienteDetalhes() {
           {/* coluna da esquerda: linha do tempo */}
           <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-200 p-6 shadow-xs flex flex-col gap-5">
             <h3 className="font-bold text-slate-900 text-base">Linha do tempo</h3>
-            <Timeline itens={historicoMock} />
+            <Timeline itens={eventosLinhaDoTempo} />
           </div>
 
-          {/* coluna da direita: ultimo contato */}
+          {/* coluna da direita: contatos recentes */}
           <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs flex flex-col gap-4 h-fit">
-            <h3 className="font-bold text-slate-900 text-base">Último contato</h3>
+            <h3 className="font-bold text-slate-900 text-base">Últimos contatos</h3>
 
             <div className="flex flex-col gap-3">
-              {contatosDetalheMock.map((contato) => (
-                <div
-                  key={contato.id}
-                  className="p-4 rounded-xl border border-slate-100 bg-slate-50/40 flex flex-col gap-2"
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-slate-800">{contato.canal}</span>
-                    <span className="text-xs text-slate-400">{contato.data}</span>
+              {contatos.length === 0 ? (
+                <p className="text-xs text-slate-400 py-4 text-center">Nenhum contato registrado ainda.</p>
+              ) : (
+                contatos.slice(0, 5).map((contato) => (
+                  <div
+                    key={contato.id_contato}
+                    className="p-4 rounded-xl border border-slate-100 bg-slate-50/40 flex flex-col gap-2"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-slate-800">{contato.canal}</span>
+                      <span className="text-xs text-slate-400">{formatarDataBR(contato.data_contato)}</span>
+                    </div>
+                    <p className="text-xs text-slate-600 leading-relaxed">{contato.mensagem}</p>
+                    {contato.resultado && (
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-blue-50 text-brand-primary w-fit">
+                        {contato.resultado}
+                      </span>
+                    )}
                   </div>
-                  <p className="text-xs text-slate-600 leading-relaxed">{contato.mensagem}</p>
-                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-blue-50 text-brand-primary w-fit">
-                    {contato.resultado}
-                  </span>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </div>
         </div>
@@ -333,90 +498,182 @@ export default function ClienteDetalhes() {
       {abaAtiva === 'historico' && (
         <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs flex flex-col gap-5">
           <h3 className="font-bold text-slate-900 text-base">Histórico completo</h3>
-          <Timeline itens={historicoMock} />
+          <Timeline itens={eventosLinhaDoTempo} />
         </div>
       )}
 
       {abaAtiva === 'viagens' && (
         <div className="flex flex-col gap-4">
-          {viagensMock.map((viagem) => (
-            <div
-              key={viagem.id}
-              className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs flex flex-col gap-5"
-            >
-              <div className="flex items-start justify-between">
-                <div>
-                  <h3 className="text-base font-bold text-slate-900">{viagem.destino}</h3>
-                  <p className="text-xs text-slate-400 mt-0.5">{viagem.tipoPacote}</p>
-                </div>
-                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-600">
-                  {viagem.status}
-                </span>
-              </div>
-
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                <div>
-                  <span className="text-xs text-slate-400 block mb-1">Embarque</span>
-                  <span className="text-sm font-bold text-slate-800">{viagem.embarque}</span>
-                </div>
-                <div>
-                  <span className="text-xs text-slate-400 block mb-1">Retorno</span>
-                  <span className="text-sm font-bold text-slate-800">{viagem.retorno}</span>
-                </div>
-                <div>
-                  <span className="text-xs text-slate-400 block mb-1">Valor total</span>
-                  <span className="text-sm font-bold text-slate-800">{viagem.valorTotal}</span>
-                </div>
-                <div>
-                  <span className="text-xs text-slate-400 block mb-1">Valor pago</span>
-                  <span className="text-sm font-bold text-emerald-600">{viagem.valorPago}</span>
-                </div>
-              </div>
-
-              <div>
-                <div className="flex items-center justify-between text-xs mb-1.5">
-                  <span className="text-slate-500 font-medium">Pagamento</span>
-                  <span className="font-bold text-emerald-600">{viagem.percentualPago}%</span>
-                </div>
-                <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
-                  <div
-                    className="bg-emerald-500 h-full rounded-full transition-all duration-300"
-                    style={{ width: `${viagem.percentualPago}%` }}
-                  />
-                </div>
-              </div>
+          {viagens.length === 0 ? (
+            <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center text-xs text-slate-400">
+              Nenhuma viagem cadastrada para este cliente.
             </div>
-          ))}
+          ) : (
+            viagens.map((viagem) => (
+              <div
+                key={viagem.id_viagem}
+                className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs flex flex-col gap-5"
+              >
+                <div className="flex items-start justify-between">
+                  <div>
+                    <h3 className="text-base font-bold text-slate-900">
+                      {viagem.destino || 'Destino a definir'}
+                    </h3>
+                    <p className="text-xs text-slate-400 mt-0.5">Viagem #{viagem.id_viagem}</p>
+                  </div>
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-600 capitalize">
+                    {viagem.status_viagem}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                  <div>
+                    <span className="text-xs text-slate-400 block mb-1">Embarque</span>
+                    <span className="text-sm font-bold text-slate-800">{formatarDataBR(viagem.data_ida)}</span>
+                  </div>
+                  <div>
+                    <span className="text-xs text-slate-400 block mb-1">Retorno</span>
+                    <span className="text-sm font-bold text-slate-800">{formatarDataBR(viagem.data_retorno)}</span>
+                  </div>
+                  <div>
+                    <span className="text-xs text-slate-400 block mb-1">Valor total</span>
+                    <span className="text-sm font-bold text-slate-800">{formatarMoeda(viagem.valor_total)}</span>
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
         </div>
       )}
 
       {abaAtiva === 'contatos' && (
         <div className="flex flex-col gap-4">
-          {contatosDetalheMock.map((contato) => (
-            <div
-              key={contato.id}
-              className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs flex flex-col gap-3"
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-semibold bg-blue-50 text-brand-primary">
-                    {contato.canal}
-                  </span>
-                  <span className="text-xs text-slate-400">{contato.data}</span>
-                </div>
-                <span className="text-xs text-slate-400 font-medium">Vendedor: {contato.vendedor}</span>
-              </div>
-
-              <p className="text-sm text-slate-700 leading-relaxed">{contato.mensagem}</p>
-
-              <div className="pt-3 border-t border-slate-100 flex items-center gap-2 text-xs">
-                <span className="text-slate-500">Resultado:</span>
-                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-600">
-                  {contato.resultado}
-                </span>
-              </div>
+          {contatos.length === 0 ? (
+            <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center text-xs text-slate-400">
+              Nenhum contato registrado para este cliente.
             </div>
-          ))}
+          ) : (
+            contatos.map((contato) => (
+              <div
+                key={contato.id_contato}
+                className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs flex flex-col gap-3"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-semibold bg-blue-50 text-brand-primary">
+                      {contato.canal}
+                    </span>
+                    <span className="text-xs text-slate-400">{formatarDataBR(contato.data_contato)}</span>
+                  </div>
+                </div>
+
+                <p className="text-sm text-slate-700 leading-relaxed">{contato.mensagem}</p>
+
+                {contato.resultado && (
+                  <div className="pt-3 border-t border-slate-100 flex items-center gap-2 text-xs">
+                    <span className="text-slate-500">Resultado:</span>
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-600">
+                      {contato.resultado}
+                    </span>
+                  </div>
+                )}
+              </div>
+            ))
+          )}
+        </div>
+      )}
+
+      {/* modal de registrar novo contato */}
+      {modalContato && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4"
+          role="presentation"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) setModalContato(false);
+          }}
+        >
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <h3 className="text-base font-bold text-slate-900">Registrar contato</h3>
+              <button
+                type="button"
+                onClick={() => setModalContato(false)}
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleRegistrarContato} className="mt-4 flex flex-col gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                  Canal utilizado
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  {(['WhatsApp', 'Telefone', 'E-mail', 'Presencial'] as const).map((opcao) => (
+                    <button
+                      key={opcao}
+                      type="button"
+                      onClick={() => setCanalContato(opcao)}
+                      className={`rounded-xl border px-3 py-2 text-xs font-semibold transition-all cursor-pointer ${
+                        canalContato === opcao
+                          ? 'border-brand-primary bg-blue-50 text-brand-primary'
+                          : 'border-slate-200 text-slate-600 hover:border-slate-300'
+                      }`}
+                    >
+                      {opcao}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                  Mensagem / Resumo do contato
+                </label>
+                <textarea
+                  required
+                  rows={3}
+                  value={mensagemContato}
+                  onChange={(e) => setMensagemContato(e.target.value)}
+                  placeholder="Ex: Cliente elogiou a viagem e planeja férias para o final do ano."
+                  className="w-full rounded-xl border border-slate-200 p-3 text-xs text-slate-700 focus:outline-none focus:border-brand-primary focus:ring-1 focus:ring-brand-primary"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                  Resultado (opcional)
+                </label>
+                <input
+                  type="text"
+                  value={resultadoContato}
+                  onChange={(e) => setResultadoContato(e.target.value)}
+                  placeholder="Ex: Interessado, Aguardando cotação, Sem interesse"
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs text-slate-700 focus:outline-none focus:border-brand-primary focus:ring-1 focus:ring-brand-primary"
+                />
+              </div>
+
+              {erroContato && <p className="text-xs text-red-600">{erroContato}</p>}
+
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setModalContato(false)}
+                  className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50 cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={salvandoContato}
+                  className="px-4 py-2 rounded-xl bg-brand-primary text-white text-xs font-semibold hover:bg-brand-primary-hover transition-colors disabled:opacity-50 cursor-pointer"
+                >
+                  {salvandoContato ? 'Salvando...' : 'Salvar contato'}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
     </div>

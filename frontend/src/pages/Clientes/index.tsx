@@ -50,12 +50,14 @@ export default function Clientes() {
 
   const navigate = useNavigate();
 
-  useEffect(() => {
+  const [salvandoCliente, setSalvandoCliente] = useState(false);
+  const [erroCliente, setErroCliente] = useState('');
+
+  const carregarClientes = () => {
     setCarregando(true);
     const termo = encodeURIComponent(busca.trim());
     api<ClientesApiResponse>(`/clientes?busca=${termo}`)
       .then((res) => {
-
         // mapeia os campos do backend para a interface Cliente da tela
         const listaMapeada: Cliente[] = (res.dados || []).map((cli: ClienteApi) => ({
           id: cli.id_cliente,
@@ -77,6 +79,10 @@ export default function Clientes() {
         console.error('erro ao buscar clientes:', err);
       })
       .finally(() => setCarregando(false));
+  };
+
+  useEffect(() => {
+    carregarClientes();
   }, [busca]);
 
   // estado para o cliente selecionado no modal de detalhes
@@ -119,36 +125,40 @@ export default function Clientes() {
     { id: 'baixa', label: 'Baixa' },
   ];
 
-  // cadastro de novo cliente
-  const handleCadastrarNovoCliente = (e: React.FormEvent) => {
+  // cadastro de novo cliente via api real
+  const handleCadastrarNovoCliente = async (e: React.FormEvent) => {
     e.preventDefault();
 
     // verificação caso esteja vazio
     if (!novoNome.trim()) return;
 
-    const novoId = Math.max(...clientes.map((c) => c.id), 0) + 1;
-    const novoCliente: Cliente = {
-      id: novoId,
-      name: novoNome.trim(),
-      phone: novoTelefone.trim() || '(48) 99999-0000',
-      email: novoEmail.trim() || `${novoNome.trim().toLowerCase().split(' ')[0]}@email.com`,
-      profile: novoPerfil,
-      totalTrips: 0,
-      lastTrip: null,
-      nextTrip: novaProximaViagem.trim() || null,
-      lastContact: '2026-08-30',
-      priority: 'none',
-      opportunity: null,
-      registeredAt: '2026-08-30',
-    };
+    setSalvandoCliente(true);
+    setErroCliente('');
 
-    setClientes([novoCliente, ...clientes]);
-    setModalNovoAberto(false);
-    setNovoNome('');
-    setNovoTelefone('');
-    setNovoEmail('');
-    setNovoPerfil('Família');
-    setNovaProximaViagem('');
+    try {
+      await api('/clientes', {
+        method: 'POST',
+        body: JSON.stringify({
+          nome_cliente: novoNome.trim(),
+          telefone: novoTelefone.trim() || null,
+          email: novoEmail.trim() || null,
+          tipo_situacao: 'ja_atendido',
+          ativo: true,
+        }),
+      });
+
+      setModalNovoAberto(false);
+      setNovoNome('');
+      setNovoTelefone('');
+      setNovoEmail('');
+      setNovoPerfil('Família');
+      setNovaProximaViagem('');
+      carregarClientes();
+    } catch (err: any) {
+      setErroCliente(err?.message || 'Falha ao cadastrar cliente');
+    } finally {
+      setSalvandoCliente(false);
+    }
   };
 
   return (
@@ -550,6 +560,9 @@ export default function Clientes() {
                     className="w-full border rounded-xl px-3 py-2 text-sm placeholder:text-slate-400 focus:outline-none focus:bg-white focus:border-brand-primary focus:ring-1 focus:ring-brand-primary transition-all"
                   />
                 </div>
+                {erroCliente && (
+                  <p className="text-xs text-red-600 px-1">{erroCliente}</p>
+                )}
               </div>
 
               {/* botões de ação */}
@@ -563,10 +576,11 @@ export default function Clientes() {
                 </button>
                 <button
                   type="submit"
-                  className="inline-flex items-center cursor-pointer gap-1.5 px-4 py-2 rounded-xl bg-brand-primary hover:bg-brand-primary-hover text-xs font-semibold text-white shadow-sm transition-all"
+                  disabled={salvandoCliente}
+                  className="inline-flex items-center cursor-pointer gap-1.5 px-4 py-2 rounded-xl bg-brand-primary hover:bg-brand-primary-hover text-xs font-semibold text-white shadow-sm transition-all disabled:opacity-50"
                 >
                   <Check size={14} />
-                  Cadastrar Cliente
+                  {salvandoCliente ? 'Cadastrando...' : 'Cadastrar Cliente'}
                 </button>
               </div>
             </form>

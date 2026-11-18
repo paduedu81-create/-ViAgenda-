@@ -1,9 +1,8 @@
 import { useState } from "react";
 import { CardRelatorio } from "./components/CardRelatorio";
 import { Activity, Clock, Phone, Users, BarChart2 } from "lucide-react";
-import { oportunidadesMock } from "../../data/oportunidadesMock";
-import { clientesMock } from "../../data/clientesMock";
-import { contatosLogMock } from "../../data/contatosLogMock";
+import { api } from "../../services/api";
+import type { OportunidadeApi } from "../Oportunidades/oportunidades.types";
 
 type TipoRelatorio = "priority" | "status" | "contacts" | "profile";
 
@@ -21,14 +20,29 @@ interface ResultadoRelatorio {
   total: number;
 }
 
+interface RelatoriosApiResponse {
+  periodo: { de: string; ate: string };
+  oportunidades_por_status: { label: string; value: number }[];
+  contatos_por_canal: { label: string; value: number }[];
+  clientes_por_situacao: { label: string; value: number }[];
+}
+
 export default function Relatorios() {
+  // define datas padrao dos ultimos 30 dias
+  const hoje = new Date();
+  const trintaDiasAtras = new Date();
+  trintaDiasAtras.setDate(hoje.getDate() - 30);
+
+  const formatarIso = (d: Date) => d.toISOString().split("T")[0];
+
   // estados das datas do período
-  const [dataDe, setDataDe] = useState("2026-08-01");
-  const [dataAte, setDataAte] = useState("2026-08-30");
+  const [dataDe, setDataDe] = useState(() => formatarIso(trintaDiasAtras));
+  const [dataAte, setDataAte] = useState(() => formatarIso(hoje));
   const [intervaloAtivo, setIntervaloAtivo] = useState<"7" | "30" | "all" | null>("30");
 
   // estado que armazena o resultado do relatório gerado
   const [resultado, setResultado] = useState<ResultadoRelatorio | null>(null);
+  const [carregando, setCarregando] = useState(false);
 
   // atualiza as datas conforme o atalho selecionado
   const handleSelecionarIntervalo = (tipo: "7" | "30" | "all") => {
@@ -39,17 +53,15 @@ export default function Relatorios() {
       return;
     }
 
-    // data de referência do sistema para manter compatibilidade com os mocks
-    const baseFim = new Date(2026, 7, 30);
-    const baseInicio = new Date(baseFim);
-    baseInicio.setDate(baseInicio.getDate() - (tipo === "7" ? 7 : 30));
+    const agora = new Date();
+    const inicio = new Date(agora);
+    inicio.setDate(agora.getDate() - (tipo === "7" ? 7 : 30));
 
-    const formataData = (d: Date) => d.toISOString().split("T")[0];
-    setDataDe(formataData(baseInicio));
-    setDataAte(formataData(baseFim));
+    setDataDe(formatarIso(inicio));
+    setDataAte(formatarIso(agora));
   };
 
-  // formata data
+  // formata data para exibicao amigavel
   const formatarBR = (iso: string) => {
     if (!iso) return "";
     const partes = iso.split("-");
@@ -57,141 +69,107 @@ export default function Relatorios() {
     return `${partes[2]}/${partes[1]}/${partes[0]}`;
   };
 
-  // verifica se uma data está dentro do range selecionado
-  const dataEstaNoPeriodo = (dataString: string) => {
-    if (!dataString) return false;
-    if (!dataDe && !dataAte) return true;
+  // gera os dados do relatório consultando os endpoints reais do backend
+  const handleGerarRelatorio = async (id: TipoRelatorio) => {
+    setCarregando(true);
 
-    let dataObj: Date;
-    if (dataString.includes("/")) {
-      const [dia, mes, ano] = dataString.split("/").map(Number);
-      dataObj = new Date(ano, mes - 1, dia);
-    } else {
-      dataObj = new Date(dataString);
-    }
+    const deParam = dataDe ? encodeURIComponent(dataDe) : "1900-01-01";
+    const ateParam = dataAte ? encodeURIComponent(dataAte) : "2999-12-31";
 
-    if (dataDe) {
-      const inicio = new Date(dataDe);
-      if (dataObj < inicio) return false;
-    }
-    if (dataAte) {
-      const fim = new Date(dataAte);
-      fim.setHours(23, 59, 59, 999);
-      if (dataObj > fim) return false;
-    }
-    return true;
-  };
-
-  // gera os dados do relatório com base no card clicado
-  const handleGerarRelatorio = (id: TipoRelatorio) => {
-    let titulo = "";
-    let linhas: LinhaResultado[] = [];
-
-    // texto do período exibido no cabeçalho
     const textoPeriodo = dataDe && dataAte
       ? `${formatarBR(dataDe)} até ${formatarBR(dataAte)}`
       : "Todo o período";
 
-    if (id === "priority") {
-      titulo = "Oportunidades por prioridade";
-      const filtradas = oportunidadesMock.filter((o) => dataEstaNoPeriodo(o.dataCriacao));
-      linhas = [
-        {
-          label: "Alta",
-          value: filtradas.filter((o) => o.prioridade === "ALTA").length,
-          cor: "bg-rose-500",
-        },
-        {
-          label: "Média",
-          value: filtradas.filter((o) => o.prioridade === "MEDIA").length,
-          cor: "bg-amber-500",
-        },
-        {
-          label: "Baixa",
-          value: filtradas.filter((o) => o.prioridade === "BAIXA").length,
-          cor: "bg-emerald-500",
-        },
-      ];
-    } else if (id === "status") {
-      titulo = "Oportunidades por status";
-      const filtradas = oportunidadesMock.filter((o) => dataEstaNoPeriodo(o.dataCriacao));
-      linhas = [
-        {
-          label: "Aberta",
-          value: filtradas.filter((o) => o.status === "Aberta").length,
-          cor: "bg-brand-primary",
-        },
-        {
-          label: "Em andamento",
-          value: filtradas.filter((o) => o.status === "Em andamento").length,
-          cor: "bg-amber-500",
-        },
-        {
-          label: "Encerrada",
-          value: filtradas.filter((o) => o.status === "Encerrada").length,
-          cor: "bg-slate-400",
-        },
-      ];
-    } else if (id === "contacts") {
-      titulo = "Contatos registrados";
-      const filtrados = contatosLogMock.filter((l) => dataEstaNoPeriodo(l.date));
-      linhas = [
-        {
-          label: "Ligação",
-          value: filtrados.filter((l) => l.type === "Ligação").length,
-          cor: "bg-brand-primary",
-        },
-        {
-          label: "WhatsApp",
-          value: filtrados.filter((l) => l.type === "WhatsApp").length,
-          cor: "bg-emerald-500",
-        },
-        {
-          label: "E-mail",
-          value: filtrados.filter((l) => l.type === "E-mail").length,
-          cor: "bg-amber-500",
-        },
-      ];
-    } else if (id === "profile") {
-      titulo = "Clientes por perfil";
-      const filtrados = clientesMock.filter((c) => dataEstaNoPeriodo(c.registeredAt));
-      linhas = [
-        {
-          label: "Família",
-          value: filtrados.filter((c) => c.profile === "Família").length,
-          cor: "bg-brand-primary",
-        },
-        {
-          label: "Casal",
-          value: filtrados.filter((c) => c.profile === "Casal").length,
-          cor: "bg-emerald-500",
-        },
-        {
-          label: "Solo",
-          value: filtrados.filter((c) => c.profile === "Solo").length,
-          cor: "bg-amber-500",
-        },
-        {
-          label: "Negócios",
-          value: filtrados.filter((c) => c.profile === "Negócios").length,
-          cor: "bg-rose-500",
-        },
-      ];
+    try {
+      let titulo = "";
+      let linhas: LinhaResultado[] = [];
+
+      if (id === "priority") {
+        titulo = "Oportunidades por prioridade";
+        const oportunidades = await api<OportunidadeApi[]>('/oportunidades');
+
+        // filtra oportunidades pelo periodo de geracao
+        const filtradas = (oportunidades || []).filter((o) => {
+          if (!o.data_geracao) return true;
+          const dataOp = o.data_geracao.slice(0, 10);
+          if (dataDe && dataOp < dataDe) return false;
+          if (dataAte && dataOp > dataAte) return false;
+          return true;
+        });
+
+        const alta = filtradas.filter((o) => o.tipo_origem === "pos_viagem").length;
+        const media = filtradas.filter((o) => o.tipo_origem === "fim_pagamento").length;
+        const baixa = filtradas.length - alta - media;
+
+        linhas = [
+          { label: "Alta (Pós-viagem)", value: alta, cor: "bg-rose-500" },
+          { label: "Média (Fim de pagamento)", value: media, cor: "bg-amber-500" },
+          { label: "Baixa (Outros)", value: Math.max(0, baixa), cor: "bg-emerald-500" },
+        ];
+      } else {
+        const dados = await api<RelatoriosApiResponse>(`/relatorios?de=${deParam}&ate=${ateParam}`);
+
+        if (id === "status") {
+          titulo = "Oportunidades por status";
+          const mapeamentoStatus: Record<string, { label: string; cor: string }> = {
+            ativa: { label: "Aberta", cor: "bg-brand-primary" },
+            em_andamento: { label: "Em andamento", cor: "bg-amber-500" },
+            encerrada: { label: "Encerrada", cor: "bg-slate-400" },
+            bloqueada: { label: "Bloqueada", cor: "bg-rose-500" },
+          };
+
+          linhas = (dados.oportunidades_por_status || []).map((item) => ({
+            label: mapeamentoStatus[item.label]?.label || item.label,
+            value: item.value,
+            cor: mapeamentoStatus[item.label]?.cor || "bg-slate-500",
+          }));
+        } else if (id === "contacts") {
+          titulo = "Contatos registrados";
+          const coresCanais: Record<string, string> = {
+            WhatsApp: "bg-emerald-500",
+            Telefone: "bg-brand-primary",
+            "E-mail": "bg-amber-500",
+            Presencial: "bg-purple-500",
+          };
+
+          linhas = (dados.contatos_por_canal || []).map((item) => ({
+            label: item.label,
+            value: item.value,
+            cor: coresCanais[item.label] || "bg-slate-500",
+          }));
+        } else if (id === "profile") {
+          titulo = "Clientes por situação cadastral";
+          const mapeamentoSituacao: Record<string, { label: string; cor: string }> = {
+            ja_atendido: { label: "Já atendido", cor: "bg-emerald-500" },
+            orcamento_aberto: { label: "Orçamento aberto", cor: "bg-brand-primary" },
+            outro: { label: "Outro", cor: "bg-amber-500" },
+            insatisfeito: { label: "Insatisfeito", cor: "bg-rose-500" },
+            nao_contatar: { label: "Não contatar", cor: "bg-slate-400" },
+          };
+
+          linhas = (dados.clientes_por_situacao || []).map((item) => ({
+            label: mapeamentoSituacao[item.label]?.label || item.label,
+            value: item.value,
+            cor: mapeamentoSituacao[item.label]?.cor || "bg-slate-500",
+          }));
+        }
+      }
+
+      // soma a quantidade total
+      const total = linhas.reduce((acumulado, linha) => acumulado + linha.value, 0);
+
+      setResultado({
+        id,
+        titulo,
+        periodo: textoPeriodo,
+        linhas,
+        total,
+      });
+    } catch (err) {
+      console.error("erro ao gerar relatorio:", err);
+    } finally {
+      setCarregando(false);
     }
-
-    // soma a quantidade total
-    let total = 0;
-    linhas.forEach((linha) => {
-      total += linha.value;
-    });
-
-    setResultado({
-      id,
-      titulo,
-      periodo: textoPeriodo,
-      linhas,
-      total,
-    });
   };
 
   const relatorios: {
@@ -200,31 +178,31 @@ export default function Relatorios() {
     titulo: string;
     descricao: string;
   }[] = [
-      {
-        id: "priority",
-        icone: <Activity size={20} />,
-        titulo: "Oportunidades por prioridade",
-        descricao: "Distribuição das oportunidades criadas no período, por nível de prioridade."
-      },
-      {
-        id: "status",
-        icone: <Clock size={20} />,
-        titulo: "Oportunidades por status",
-        descricao: "Quantas oportunidades estão abertas, em andamento ou encerradas no período."
-      },
-      {
-        id: "contacts",
-        icone: <Phone size={20} />,
-        titulo: "Contatos registrados",
-        descricao: "Volume de contatos (ligação, WhatsApp, e-mail) realizados no período."
-      },
-      {
-        id: "profile",
-        icone: <Users size={20} />,
-        titulo: "Clientes por perfil",
-        descricao: "Novos clientes cadastrados no período, agrupados por perfil de viagem."
-      }
-    ];
+    {
+      id: "priority",
+      icone: <Activity size={20} />,
+      titulo: "Oportunidades por prioridade",
+      descricao: "Distribuição das oportunidades criadas no período, por nível de prioridade."
+    },
+    {
+      id: "status",
+      icone: <Clock size={20} />,
+      titulo: "Oportunidades por status",
+      descricao: "Quantas oportunidades estão abertas, em andamento ou encerradas no período."
+    },
+    {
+      id: "contacts",
+      icone: <Phone size={20} />,
+      titulo: "Contatos registrados",
+      descricao: "Volume de contatos (ligação, WhatsApp, e-mail, presencial) realizados no período."
+    },
+    {
+      id: "profile",
+      icone: <Users size={20} />,
+      titulo: "Clientes por situação",
+      descricao: "Clientes cadastrados no período agrupados por situação de atendimento."
+    }
+  ];
 
   // cálculo do maior valor para determinar a proporção percentual da barra
   const valorMaximo = resultado ? Math.max(1, ...resultado.linhas.map((l) => l.value)) : 1;
@@ -235,7 +213,7 @@ export default function Relatorios() {
       <div>
         <h2 className="text-xl font-bold text-slate-900">Relatórios</h2>
         <p className="text-xs text-slate-500 mt-1">
-          Relatórios pré-prontos. Escolha um período e gere o resultado.
+          Relatórios gerados em tempo real com dados da base. Escolha o período e clique no relatório desejado.
         </p>
       </div>
 
@@ -278,30 +256,33 @@ export default function Relatorios() {
           <button
             type="button"
             onClick={() => handleSelecionarIntervalo("7")}
-            className={`px-3.5 py-2 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${intervaloAtivo === "7"
-              ? "bg-brand-primary text-white border-brand-primary shadow-xs"
-              : "bg-white text-slate-600 border-slate-200 hover:border-brand-primary hover:text-brand-primary"
-              }`}
+            className={`px-3.5 py-2 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
+              intervaloAtivo === "7"
+                ? "bg-brand-primary text-white border-brand-primary shadow-xs"
+                : "bg-white text-slate-600 border-slate-200 hover:border-brand-primary hover:text-brand-primary"
+            }`}
           >
             Últimos 7 dias
           </button>
           <button
             type="button"
             onClick={() => handleSelecionarIntervalo("30")}
-            className={`px-3.5 py-2 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${intervaloAtivo === "30"
-              ? "bg-brand-primary text-white border-brand-primary shadow-xs"
-              : "bg-white text-slate-600 border-slate-200 hover:border-brand-primary hover:text-brand-primary"
-              }`}
+            className={`px-3.5 py-2 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
+              intervaloAtivo === "30"
+                ? "bg-brand-primary text-white border-brand-primary shadow-xs"
+                : "bg-white text-slate-600 border-slate-200 hover:border-brand-primary hover:text-brand-primary"
+            }`}
           >
             Últimos 30 dias
           </button>
           <button
             type="button"
             onClick={() => handleSelecionarIntervalo("all")}
-            className={`px-3.5 py-2 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${intervaloAtivo === "all"
-              ? "bg-brand-primary text-white border-brand-primary shadow-xs"
-              : "bg-white text-slate-600 border-slate-200 hover:border-brand-primary hover:text-brand-primary"
-              }`}
+            className={`px-3.5 py-2 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
+              intervaloAtivo === "all"
+                ? "bg-brand-primary text-white border-brand-primary shadow-xs"
+                : "bg-white text-slate-600 border-slate-200 hover:border-brand-primary hover:text-brand-primary"
+            }`}
           >
             Tudo
           </button>
@@ -310,7 +291,7 @@ export default function Relatorios() {
 
       {/* grid com os cards de relatórios */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        {relatorios.map(rel => (
+        {relatorios.map((rel) => (
           <CardRelatorio
             key={rel.id}
             icone={rel.icone}
@@ -321,8 +302,16 @@ export default function Relatorios() {
         ))}
       </div>
 
+      {/* painel de carregamento */}
+      {carregando && (
+        <div className="bg-white border border-slate-200/80 rounded-2xl p-10 flex flex-col items-center justify-center gap-2 shadow-xs">
+          <div className="w-6 h-6 border-2 border-brand-primary border-t-transparent rounded-full animate-spin" />
+          <span className="text-xs font-medium text-slate-500">Calculando indicadores...</span>
+        </div>
+      )}
+
       {/* painel de resultado do relatório selecionado */}
-      {resultado && (
+      {!carregando && resultado && (
         <div className="bg-white border border-slate-200/80 rounded-2xl shadow-xs overflow-hidden transition-all animate-in fade-in duration-200">
           {/* cabeçalho do resultado */}
           <div className="p-5 border-b border-slate-100 flex items-center justify-between">
@@ -352,7 +341,7 @@ export default function Relatorios() {
                   return (
                     <div
                       key={linha.label}
-                      className="grid grid-cols-[110px_1fr_40px] sm:grid-cols-[130px_1fr_48px] items-center gap-3 sm:gap-4 text-xs"
+                      className="grid grid-cols-[130px_1fr_40px] sm:grid-cols-[160px_1fr_48px] items-center gap-3 sm:gap-4 text-xs"
                     >
                       {/* rótulo */}
                       <span className="font-bold text-slate-700 truncate">
