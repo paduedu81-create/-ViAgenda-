@@ -46,6 +46,7 @@ O banco de dados é relacional e contempla as entidades: `vendedor`, `cliente`, 
 
 ## 📌 Gestão do Projeto
 
+- **Aplicação Web (Vercel):** https://vi-agenda.vercel.app
 - **Kanban (Jira):** https://projetointegradorweb.atlassian.net/jira/software/projects/PROJ/boards/1?filter=&groupBy=none
 - **Documentação de infraestrutura:** ver relatório em PDF/DOCX entregue junto à disciplina.
 
