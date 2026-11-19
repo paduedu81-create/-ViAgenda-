@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
-import { Mail, Lock, Eye, EyeOff, AlertCircle, ArrowRight, ShieldCheck, Sparkles, Compass, Send } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, AlertCircle, ArrowRight, ShieldCheck, Sparkles, Compass, Send, X, CheckCircle } from 'lucide-react';
 import { useAuth } from '../../contexts/useAuth';
+import { api } from '../../services/api';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -16,6 +17,13 @@ export default function Login() {
   // estados de feedback de envio e erro
   const [carregando, setCarregando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
+
+  // estados do modal de recuperacao de senha
+  const [modalRecuperarAberto, setModalRecuperarAberto] = useState(false);
+  const [emailRecuperacao, setEmailRecuperacao] = useState('');
+  const [carregandoRecuperacao, setCarregandoRecuperacao] = useState(false);
+  const [mensagemRecuperacao, setMensagemRecuperacao] = useState<string | null>(null);
+  const [erroRecuperacao, setErroRecuperacao] = useState<string | null>(null);
 
   // se já estiver autenticado, redireciona para o dashboard
   if (estaAutenticado) {
@@ -40,6 +48,31 @@ export default function Login() {
       navigate('/dashboard', { replace: true });
     } else {
       setErro(resultado.mensagem || 'Credenciais inválidas.');
+    }
+  };
+
+  // solicitacao de envio do link de recuperacao de senha
+  const handleRecuperarSenha = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErroRecuperacao(null);
+    setMensagemRecuperacao(null);
+
+    if (!emailRecuperacao.trim()) {
+      setErroRecuperacao('Informe o e-mail cadastrado.');
+      return;
+    }
+
+    setCarregandoRecuperacao(true);
+    try {
+      const res = await api<{ mensagem: string }>('/auth/esqueci-senha', {
+        method: 'POST',
+        body: JSON.stringify({ email: emailRecuperacao.trim() }),
+      });
+      setMensagemRecuperacao(res.mensagem || 'Instruções enviadas com sucesso.');
+    } catch (err: any) {
+      setErroRecuperacao(err.message || 'Erro ao solicitar redefinição de senha.');
+    } finally {
+      setCarregandoRecuperacao(false);
     }
   };
 
@@ -161,7 +194,12 @@ export default function Login() {
                 </label>
                 <button
                   type="button"
-                  onClick={() => alert('Para demonstração, use os botões de Acesso Rápido abaixo.')}
+                  onClick={() => {
+                    setModalRecuperarAberto(true);
+                    setMensagemRecuperacao(null);
+                    setErroRecuperacao(null);
+                    setEmailRecuperacao(email);
+                  }}
                   className="text-xs text-brand-primary hover:underline font-semibold cursor-pointer"
                 >
                   Esqueceu a senha?
@@ -235,6 +273,100 @@ export default function Login() {
           </div>
         </div>
       </div>
+
+      {/* modal de recuperacao de senha */}
+      {modalRecuperarAberto && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl shadow-xl border border-slate-200 w-full max-w-md p-6 relative">
+            <button
+              type="button"
+              onClick={() => setModalRecuperarAberto(false)}
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
+            >
+              <X size={18} />
+            </button>
+
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-xl bg-blue-50 text-brand-primary flex items-center justify-center shrink-0">
+                <Lock size={20} />
+              </div>
+              <div>
+                <h3 className="font-bold text-slate-900 text-base">Recuperar Senha</h3>
+                <p className="text-xs text-slate-500">Enviaremos um link seguro para o seu e-mail.</p>
+              </div>
+            </div>
+
+            {mensagemRecuperacao ? (
+              <div className="space-y-4 py-2">
+                <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs leading-relaxed flex items-start gap-2.5">
+                  <CheckCircle size={16} className="text-emerald-600 shrink-0 mt-0.5" />
+                  <span>{mensagemRecuperacao}</span>
+                </div>
+                <p className="text-xs text-slate-500">
+                  Verifique a sua caixa de entrada e spam. O link expirará em 15 minutos.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setModalRecuperarAberto(false)}
+                  className="w-full py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl transition-colors cursor-pointer"
+                >
+                  Fechar
+                </button>
+              </div>
+            ) : (
+              <form onSubmit={handleRecuperarSenha} className="space-y-4">
+                {erroRecuperacao && (
+                  <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs flex items-center gap-2">
+                    <AlertCircle size={15} className="shrink-0" />
+                    <span>{erroRecuperacao}</span>
+                  </div>
+                )}
+
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-bold text-slate-700">
+                    E-mail cadastrado
+                  </label>
+                  <div className="relative">
+                    <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    <input
+                      type="email"
+                      value={emailRecuperacao}
+                      onChange={(e) => setEmailRecuperacao(e.target.value)}
+                      placeholder="seu.email@viagens.com.br"
+                      required
+                      className="w-full bg-white border border-slate-200 rounded-xl pl-10 pr-4 py-2.5 text-sm placeholder:text-slate-400 focus:outline-none focus:border-brand-primary focus:ring-1 focus:ring-brand-primary transition-all"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setModalRecuperarAberto(false)}
+                    className="px-4 py-2.5 border border-slate-200 text-slate-600 hover:bg-slate-50 text-xs font-semibold rounded-xl transition-colors cursor-pointer"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={carregandoRecuperacao}
+                    className="px-4 py-2.5 bg-brand-primary hover:bg-brand-primary-hover text-white text-xs font-semibold rounded-xl transition-all cursor-pointer disabled:opacity-50 flex items-center gap-2 shadow-xs"
+                  >
+                    {carregandoRecuperacao ? (
+                      <>
+                        <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        <span>Enviando...</span>
+                      </>
+                    ) : (
+                      <span>Enviar link de recuperação</span>
+                    )}
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
