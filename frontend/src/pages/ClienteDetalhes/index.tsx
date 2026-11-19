@@ -3,7 +3,15 @@ import { ArrowLeft, UserX, Phone, Mail, User, Plus, Plane, CreditCard, Star, X }
 import { extrairIniciais, calcularDiasAtras } from '../../utils/formatters';
 import { useState, useEffect, useCallback } from 'react';
 import { api } from '../../services/api';
-import type { Cliente, PerfilCliente, PrioridadeCliente } from '../Clientes/clientes.types';
+import type {
+  Cliente,
+  ClienteDetalhesApi,
+  PerfilCliente,
+  PrioridadeCliente,
+  ViagemItem,
+  ContatoItem,
+  InteresseItem,
+} from '../Clientes/clientes.types';
 import type { OportunidadeApi } from '../Oportunidades/oportunidades.types';
 
 type AbaDetalhes = 'visao360' | 'historico' | 'viagens' | 'contatos';
@@ -14,35 +22,6 @@ export interface EventoHistorico {
   titulo: string;
   descricao: string;
   tipo: 'viagem' | 'contato' | 'pagamento';
-}
-
-export interface ViagemItem {
-  id_viagem: number;
-  id_destino?: number | null;
-  destino?: string | null;
-  data_ida: string;
-  data_retorno: string;
-  valor_total: number | string;
-  status_viagem: string;
-}
-
-export interface ContatoItem {
-  id_contato: number;
-  id_cliente: number;
-  id_oportunidade?: number | null;
-  id_vendedor?: number | null;
-  canal: 'WhatsApp' | 'Telefone' | 'E-mail' | 'Presencial';
-  mensagem: string;
-  resultado?: string | null;
-  data_contato: string;
-  vendedor?: string;
-}
-
-export interface InteresseItem {
-  id_interesse: number;
-  id_destino: number;
-  nome_destino: string;
-  descricao_interesse?: string | null;
 }
 
 // componente reutilizavel de linha do tempo
@@ -115,6 +94,10 @@ export default function ClienteDetalhes() {
   const [contatos, setContatos] = useState<ContatoItem[]>([]);
   const [interesses, setInteresses] = useState<InteresseItem[]>([]);
   const [oportunidadeDescricao, setOportunidadeDescricao] = useState<string | null>(null);
+  const [oportunidadeAtiva, setOportunidadeAtiva] = useState<OportunidadeApi | null>(null);
+  const [modalEncerrarOp, setModalEncerrarOp] = useState(false);
+  const [encerrandoOp, setEncerrandoOp] = useState(false);
+  const [erroEncerrarOp, setErroEncerrarOp] = useState('');
 
   // estado de carregamento
   const [carregando, setCarregando] = useState(true);
@@ -137,7 +120,7 @@ export default function ClienteDetalhes() {
 
     try {
       const [dataCli, ops] = await Promise.all([
-        api<any>(`/clientes/${id}`),
+        api<ClienteDetalhesApi>(`/clientes/${id}`),
         api<OportunidadeApi[]>('/oportunidades').catch(() => []),
       ]);
 
@@ -150,10 +133,14 @@ export default function ClienteDetalhes() {
       setInteresses(listaInteresses);
 
       // localiza se ha oportunidade ativa vinculada ao cliente
-      const opAtiva = ops.find((o) => o.id_cliente === Number(id));
+      const opAtiva = ops.find(
+        (o) => o.id_cliente === Number(id) && o.status_oportunidade !== 'encerrada'
+      );
       if (opAtiva) {
+        setOportunidadeAtiva(opAtiva);
         setOportunidadeDescricao(opAtiva.descricao || 'Oportunidade comercial em aberto para acompanhamento.');
       } else {
+        setOportunidadeAtiva(null);
         setOportunidadeDescricao(null);
       }
 
@@ -162,8 +149,8 @@ export default function ClienteDetalhes() {
         dataCli.tipo_situacao === 'orcamento_aberto'
           ? 'alta'
           : dataCli.tipo_situacao === 'ja_atendido'
-          ? 'media'
-          : 'none';
+            ? 'media'
+            : 'none';
 
       const ultimaViagemNome = listaViagens[0]?.destino || null;
       const ultimoContatoData = listaContatos[0]?.data_contato
@@ -221,12 +208,40 @@ export default function ClienteDetalhes() {
       setMensagemContato('');
       setResultadoContato('');
       await carregarCliente();
-    } catch (err: any) {
-      setErroContato(err?.message || 'Falha ao registrar contato');
+    } catch (err: unknown) {
+      setErroContato(
+        err instanceof Error ? err.message : 'Falha ao registrar contato'
+      );
     } finally {
       setSalvandoContato(false);
     }
   };
+
+  // encerra a oportunidade ativa do cliente chamando o backend
+  async function handleEncerrarOportunidade() {
+    if (!oportunidadeAtiva) return;
+
+    setEncerrandoOp(true);
+    setErroEncerrarOp('');
+
+    try {
+      await api(`/oportunidades/${oportunidadeAtiva.id_oportunidade}/encerrar`, {
+        method: 'POST',
+      });
+
+      // fecha o modal e recarrega as informacoes da tela
+      setModalEncerrarOp(false);
+      await carregarCliente();
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setErroEncerrarOp(err.message);
+      } else {
+        setErroEncerrarOp('Falha ao encerrar oportunidade');
+      }
+    } finally {
+      setEncerrandoOp(false);
+    }
+  }
 
   // monta lista combinada de eventos para a linha do tempo
   const eventosLinhaDoTempo: EventoHistorico[] = [
@@ -250,7 +265,13 @@ export default function ClienteDetalhes() {
     })),
   ]
     .sort((a, b) => b.timestamp - a.timestamp)
-    .map(({ timestamp: _, ...evento }) => evento);
+    .map((evento) => ({
+      id: evento.id,
+      data: evento.data,
+      titulo: evento.titulo,
+      descricao: evento.descricao,
+      tipo: evento.tipo,
+    }));
 
   const abas: { id: AbaDetalhes; label: string }[] = [
     { id: 'visao360', label: 'Visão 360°' },
@@ -424,11 +445,22 @@ export default function ClienteDetalhes() {
         {/* destaque de oportunidade identificada */}
         {oportunidadeDescricao && (
           <div className={`mt-5 p-4 rounded-xl border ${prioridadeConfig.oportunidadeBox}`}>
-            <div className="flex items-center gap-2 font-bold text-sm">
-              <Star size={16} className={prioridadeConfig.estrela} />
-              <span>Oportunidade identificada</span>
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 font-bold text-sm">
+                <Star size={16} className={prioridadeConfig.estrela} />
+                <span>Oportunidade identificada</span>
+              </div>
+              {oportunidadeAtiva && (
+                <button
+                  type="button"
+                  onClick={() => setModalEncerrarOp(true)}
+                  className="text-xs font-semibold px-2.5 py-1 rounded-lg border border-red-200 bg-white/90 hover:bg-white text-red-600 transition-all cursor-pointer shadow-2xs"
+                >
+                  Encerrar oportunidade
+                </button>
+              )}
             </div>
-            <p className="text-xs text-slate-600 mt-1 leading-relaxed">
+            <p className="text-xs text-slate-600 mt-1.5 leading-relaxed">
               {oportunidadeDescricao}
             </p>
           </div>
@@ -443,11 +475,10 @@ export default function ClienteDetalhes() {
             <button
               key={aba.id}
               onClick={() => setAbaAtiva(aba.id)}
-              className={`px-4 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer select-none ${
-                isAtiva
-                  ? 'bg-brand-primary text-white shadow-xs'
-                  : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
-              }`}
+              className={`px-4 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer select-none ${isAtiva
+                ? 'bg-brand-primary text-white shadow-xs'
+                : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+                }`}
             >
               {aba.label}
             </button>
@@ -615,11 +646,10 @@ export default function ClienteDetalhes() {
                       key={opcao}
                       type="button"
                       onClick={() => setCanalContato(opcao)}
-                      className={`rounded-xl border px-3 py-2 text-xs font-semibold transition-all cursor-pointer ${
-                        canalContato === opcao
-                          ? 'border-brand-primary bg-blue-50 text-brand-primary'
-                          : 'border-slate-200 text-slate-600 hover:border-slate-300'
-                      }`}
+                      className={`rounded-xl border px-3 py-2 text-xs font-semibold transition-all cursor-pointer ${canalContato === opcao
+                        ? 'border-brand-primary bg-blue-50 text-brand-primary'
+                        : 'border-slate-200 text-slate-600 hover:border-slate-300'
+                        }`}
                     >
                       {opcao}
                     </button>
@@ -673,6 +703,57 @@ export default function ClienteDetalhes() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* modal de confirmar encerramento da oportunidade do cliente */}
+      {modalEncerrarOp && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4"
+          role="presentation"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) setModalEncerrarOp(false);
+          }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            className="w-full max-w-md bg-white rounded-2xl shadow-xl p-6 animate-in fade-in zoom-in-95 duration-150"
+          >
+            <h3 className="text-base font-bold text-slate-900">Encerrar oportunidade</h3>
+            <p className="mt-2 text-xs text-slate-600 leading-relaxed">
+              Deseja encerrar o acompanhamento desta oportunidade para{' '}
+              <b className="text-slate-900">{cliente?.name}</b>?
+            </p>
+            <p className="mt-1 text-xs text-slate-400">
+              O status será atualizado para encerrada e a oportunidade deixará de exigir atenção comercial imediata.
+            </p>
+
+            {erroEncerrarOp && (
+              <p role="alert" className="mt-3 text-xs text-red-600">
+                {erroEncerrarOp}
+              </p>
+            )}
+
+            <div className="mt-6 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setModalEncerrarOp(false)}
+                disabled={encerrandoOp}
+                className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleEncerrarOportunidade}
+                disabled={encerrandoOp}
+                className="px-4 py-2 rounded-xl bg-rose-600 text-white text-xs font-semibold hover:bg-rose-700 transition-colors disabled:opacity-50 cursor-pointer"
+              >
+                {encerrandoOp ? 'Encerrando...' : 'Confirmar encerramento'}
+              </button>
+            </div>
           </div>
         </div>
       )}

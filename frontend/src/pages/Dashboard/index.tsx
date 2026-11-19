@@ -59,24 +59,45 @@ export default function Dashboard() {
         setProximosContatos(contatosFormatados);
 
         // 3. Mapeia as oportunidades reais da lista
-        const opFormatadas: Oportunidade[] = (opData || []).map((o) => ({
-          id: o.id_oportunidade,
-          clienteId: o.id_cliente,
-          iniciais: (o.nome_cliente || 'CL').slice(0, 2).toUpperCase(),
-          nomeCliente: o.nome_cliente,
-          tipo: o.tipo_origem === 'pos_viagem' ? 'Pós-viagem' : o.tipo_origem === 'fim_pagamento' ? 'Fim de pagamento' : 'Acompanhamento',
-          descricao: o.descricao || '',
-          prioridade: o.tipo_origem === 'pos_viagem' ? 'ALTA' : 'MEDIA',
-          status: o.status_oportunidade === 'ativa' ? 'Aberta' : 'Em andamento',
-          dataCriacao: o.data_geracao ? o.data_geracao.slice(0, 10) : '',
-          ultimoContato: 'Sem contato',
-          contatoSugerido: o.tipo_origem === 'pos_viagem' ? 'WhatsApp pós-viagem' : 'Ligação comercial',
-        }));
+        const opFormatadas: Oportunidade[] = (opData || [])
+          .filter((o) => o.status_oportunidade !== 'encerrada')
+          .map((o) => ({
+            id: o.id_oportunidade,
+            clienteId: o.id_cliente,
+            iniciais: (o.nome_cliente || 'CL').slice(0, 2).toUpperCase(),
+            nomeCliente: o.nome_cliente,
+            tipo: o.tipo_origem === 'pos_viagem' ? 'Pós-viagem' : o.tipo_origem === 'fim_pagamento' ? 'Fim de pagamento' : 'Acompanhamento',
+            descricao: o.descricao || '',
+            prioridade: o.tipo_origem === 'pos_viagem' ? 'ALTA' : 'MEDIA',
+            status: o.status_oportunidade === 'ativa' ? 'Aberta' : 'Em andamento',
+            dataCriacao: o.data_geracao ? o.data_geracao.slice(0, 10) : '',
+            ultimoContato: 'Sem contato',
+            contatoSugerido: o.tipo_origem === 'pos_viagem' ? 'WhatsApp pós-viagem' : 'Ligação comercial',
+          }));
         setOportunidades(opFormatadas);
       })
       .catch((err) => console.error('erro ao carregar dashboard:', err))
       .finally(() => setCarregando(false));
   }, []);
+
+  // remove a oportunidade encerrada da fila de hoje e atualiza contador
+  function handleEncerrarOportunidade(id: string | number) {
+    // remove a oportunidade que foi encerrada
+    const listaAtualizada = oportunidades.filter((op) => op.id !== id);
+    setOportunidades(listaAtualizada);
+
+    // reduz em 1 o total de oportunidades ativas
+    setMetricas((valoresAtuais) => {
+      let novoTotal = valoresAtuais.oportunidades_ativas - 1;
+      if (novoTotal < 0) {
+        novoTotal = 0;
+      }
+      return {
+        ...valoresAtuais,
+        oportunidades_ativas: novoTotal,
+      };
+    });
+  }
 
   // exibe estado de carregamento enquanto busca dados da api
   if (carregando) {
@@ -117,9 +138,9 @@ export default function Dashboard() {
         />
       </div>
 
-      <div className="flex gap-6 items-start mt-8">
+      <div className="flex flex-col lg:flex-row gap-6 items-start mt-8">
 
-        <div className="flex-1 bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
+        <div className="flex-1 min-w-0 bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
           <div className="flex items-center justify-between pb-4 border-b border-slate-100">
             <h3
               style={{ color: colors.text.primary }}
@@ -143,13 +164,17 @@ export default function Dashboard() {
               <p className="text-sm text-slate-400 py-6 text-center">Nenhuma oportunidade pendente para hoje.</p>
             ) : (
               oportunidades.map((op) => (
-                <CardOportunidade key={op.id} oportunidade={op} />
+                <CardOportunidade
+                  key={op.id}
+                  oportunidade={op}
+                  onEncerrarOportunidade={handleEncerrarOportunidade}
+                />
               ))
             )}
           </div>
         </div>
 
-        <div className="w-140 shrink-0 space-y-6">
+        <div className="w-full lg:w-96 xl:w-[420px] shrink-0 space-y-6">
           <CardResumoDia
             data="Hoje"
             contatosConcluidos={metricas.contatos_mes}

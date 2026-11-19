@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Search, Plus, User, Phone, Mail, MapPin, Calendar, Clock, AlertCircle, X, Check } from 'lucide-react';
-import { extrairIniciais, calcularDiasAtras } from '../../utils/formatters';
+import { extrairIniciais, calcularDiasAtras, formatarDataBR } from '../../utils/formatters';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../../services/api';
 import type { Cliente, ClienteApi, ClientesApiResponse, PerfilCliente } from './clientes.types';
@@ -284,12 +284,12 @@ export default function Clientes() {
 
                     {/* última viagem */}
                     <td className="py-3.5 px-4 text-xs text-slate-700">
-                      {cliente.lastTrip || <span className="text-slate-300 font-bold">—</span>}
+                      {cliente.lastTrip ? formatarDataBR(cliente.lastTrip) : <span className="text-slate-300 font-bold">—</span>}
                     </td>
 
                     {/* próxima viagem */}
                     <td className="py-3.5 px-4 text-xs text-slate-700">
-                      {cliente.nextTrip || <span className="text-slate-300 font-bold">—</span>}
+                      {cliente.nextTrip ? formatarDataBR(cliente.nextTrip) : <span className="text-slate-300 font-bold">—</span>}
                     </td>
 
                     {/* último contato */}
@@ -407,7 +407,7 @@ export default function Clientes() {
                     Última Viagem:
                   </span>
                   <span className="font-semibold text-slate-800">
-                    {clienteDetalhes.lastTrip || 'Nenhum histórico'}
+                    {clienteDetalhes.lastTrip ? formatarDataBR(clienteDetalhes.lastTrip) : 'Nenhum histórico'}
                   </span>
                 </div>
                 <div className="flex items-center justify-between text-xs">
@@ -416,7 +416,7 @@ export default function Clientes() {
                     Próxima Viagem:
                   </span>
                   <span className="font-semibold text-slate-800">
-                    {clienteDetalhes.nextTrip || 'Não agendada'}
+                    {clienteDetalhes.nextTrip ? formatarDataBR(clienteDetalhes.nextTrip) : 'Não agendada'}
                   </span>
                 </div>
                 <div className="flex items-center justify-between text-xs">

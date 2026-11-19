@@ -1,189 +1,364 @@
-import { useNavigate } from "react-router-dom";
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { api } from '../../../services/api';
-import type { Oportunidade } from "../../Oportunidades/oportunidades.types";
-
+import { formatarDataBR } from '../../../utils/formatters';
+import type { Oportunidade } from '../../Oportunidades/oportunidades.types';
 
 interface CardOportunidadeProps {
   oportunidade: Oportunidade;
   onRegistrarContato?: (id: string | number) => void;
+  onEncerrarOportunidade?: (id: string | number) => void;
 }
 
 export function CardOportunidade({
   oportunidade,
   onRegistrarContato,
+  onEncerrarOportunidade,
 }: CardOportunidadeProps) {
-  const [modalContato, setModalContato] = useState(false);
-  const [canal, setCanal] = useState('');
-  const [salvando, setSalvando] = useState(false);
+  const navigate = useNavigate();
+
+  // estados dos modais da tela
+  const [modalContatoAberto, setModalContatoAberto] = useState(false);
+  const [modalEncerrarAberto, setModalEncerrarAberto] = useState(false);
+
+  // campos para registrar contato
+  const [canalSelecionado, setCanalSelecionado] = useState('');
+  const [salvandoContato, setSalvandoContato] = useState(false);
   const [erroContato, setErroContato] = useState('');
+
+  // estado para encerramento
+  const [salvandoEncerramento, setSalvandoEncerramento] = useState(false);
+  const [erroEncerramento, setErroEncerramento] = useState('');
+
+  // verifica se ja foi feito contato anteriormente
   const [contatoFeito, setContatoFeito] = useState(() => {
     try {
-      const feitos = JSON.parse(localStorage.getItem('@viagenda:contatos-feitos') || '[]') as string[];
-      return feitos.includes(String(oportunidade.id));
+      const historico = localStorage.getItem('@viagenda:contatos-feitos');
+      if (!historico) return false;
+      const ids: string[] = JSON.parse(historico);
+      return ids.includes(String(oportunidade.id));
     } catch {
       return false;
     }
   });
-  const prioridadeStyles = {
-    ALTA: {
-      borda: 'border-l-[#e11d48]',
-      texto: 'text-[#e11d48]',
-      dot: 'bg-[#e11d48]',
-      avatarBg: 'bg-[#fdedf1]',
-      avatarTexto: 'text-[#e11d48]',
-    },
-    MEDIA: {
-      borda: 'border-l-[#d97706]',
-      texto: 'text-[#d97706]',
-      dot: 'bg-[#d97706]',
-      avatarBg: 'bg-[#fdf3e2]',
-      avatarTexto: 'text-[#d97706]',
-    },
-    BAIXA: {
-      borda: 'border-l-[#16a34a]',
-      texto: 'text-[#16a34a]',
-      dot: 'bg-[#16a34a]',
-      avatarBg: 'bg-[#e9f9ef]',
-      avatarTexto: 'text-[#16a34a]',
-    },
-  }[oportunidade.prioridade];
 
-  const statusStyles: Record<Oportunidade['status'], string> = {
-    Aberta: 'bg-[#e8eefd] text-[#1d4ed8]',
-    'Em andamento': 'bg-[#fdf3e2] text-[#d97706]',
-    Concluída: 'bg-[#eef1f6] text-[#7c8aa0]',
-    Encerrada: 'bg-[#eef1f6] text-[#7c8aa0]',
-  };
-  const estiloStatus = statusStyles[oportunidade.status] || 'bg-[#eef1f6] text-[#7c8aa0]';
+  // cores da borda e texto conforme prioridade
+  function getCoresPrioridade() {
+    if (oportunidade.prioridade === 'ALTA') {
+      return {
+        borda: 'border-l-rose-600',
+        texto: 'text-rose-600',
+        ponto: 'bg-rose-600',
+        avatarFundo: 'bg-rose-50',
+        avatarTexto: 'text-rose-600',
+      };
+    }
+    if (oportunidade.prioridade === 'MEDIA') {
+      return {
+        borda: 'border-l-amber-600',
+        texto: 'text-amber-600',
+        ponto: 'bg-amber-600',
+        avatarFundo: 'bg-amber-50',
+        avatarTexto: 'text-amber-600',
+      };
+    }
+    return {
+      borda: 'border-l-emerald-600',
+      texto: 'text-emerald-600',
+      ponto: 'bg-emerald-600',
+      avatarFundo: 'bg-emerald-50',
+      avatarTexto: 'text-emerald-600',
+    };
+  }
 
-  const navigate = useNavigate();
+  // cor do badge de status
+  function getCorStatus() {
+    if (oportunidade.status === 'Aberta') {
+      return 'bg-blue-100 text-blue-700';
+    }
+    if (oportunidade.status === 'Em andamento') {
+      return 'bg-amber-100 text-amber-700';
+    }
+    return 'bg-slate-100 text-slate-600';
+  }
 
-  // navega para a ficha do cliente vinculado
-  const handleVerCliente = () => {
+  // estilo do botao de contato
+  function getEstiloBotaoContato() {
+    if (contatoFeito) {
+      return 'border-emerald-600 bg-emerald-600 text-white cursor-not-allowed';
+    }
+    if (oportunidade.status === 'Encerrada') {
+      return 'border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed';
+    }
+    return 'border-blue-600 bg-blue-600 text-white hover:bg-blue-700 cursor-pointer';
+  }
+
+  // vai para a pagina do cliente
+  function irParaCliente() {
     navigate(`/clientes/${oportunidade.clienteId}`);
-  };
+  }
 
-  const registrarContato = async () => {
-    if (!canal) return;
-    setSalvando(true);
+  // salva o contato na api
+  async function salvarContato() {
+    if (!canalSelecionado) return;
+
+    setSalvandoContato(true);
     setErroContato('');
+
     try {
       await api(`/contatos/${oportunidade.id}/registrar`, {
         method: 'POST',
         body: JSON.stringify({
           id_cliente: oportunidade.clienteId,
-          canal,
-          mensagem: `Contato realizado via ${canal}.`,
+          canal: canalSelecionado,
+          mensagem: `Contato realizado via ${canalSelecionado}.`,
           resultado: 'Contato feito',
         }),
       });
+
       setContatoFeito(true);
-      const feitos = JSON.parse(localStorage.getItem('@viagenda:contatos-feitos') || '[]') as string[];
-      localStorage.setItem('@viagenda:contatos-feitos', JSON.stringify([...new Set([...feitos, String(oportunidade.id)])]));
-      setModalContato(false);
-      onRegistrarContato?.(oportunidade.id);
-    } catch (error) {
-      setErroContato(error instanceof Error ? error.message : 'Não foi possível registrar o contato.');
+
+      // salva no localstorage para lembrar que foi feito
+      const historicoAtual = localStorage.getItem('@viagenda:contatos-feitos');
+      let listaIds: string[] = [];
+      if (historicoAtual) {
+        listaIds = JSON.parse(historicoAtual);
+      }
+      if (!listaIds.includes(String(oportunidade.id))) {
+        listaIds.push(String(oportunidade.id));
+      }
+      localStorage.setItem('@viagenda:contatos-feitos', JSON.stringify(listaIds));
+
+      setModalContatoAberto(false);
+
+      if (onRegistrarContato) {
+        onRegistrarContato(oportunidade.id);
+      }
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setErroContato(err.message);
+      } else {
+        setErroContato('Não foi possível registrar o contato.');
+      }
     } finally {
-      setSalvando(false);
+      setSalvandoContato(false);
     }
-  };
+  }
+
+  // encerra a oportunidade chamando o backend
+  async function confirmarEncerramento() {
+    setSalvandoEncerramento(true);
+    setErroEncerramento('');
+
+    try {
+      await api(`/oportunidades/${oportunidade.id}/encerrar`, {
+        method: 'POST',
+      });
+
+      setModalEncerrarAberto(false);
+
+      if (onEncerrarOportunidade) {
+        onEncerrarOportunidade(oportunidade.id);
+      }
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setErroEncerramento(err.message);
+      } else {
+        setErroEncerramento('Não foi possível encerrar a oportunidade.');
+      }
+    } finally {
+      setSalvandoEncerramento(false);
+    }
+  }
+
+  const cores = getCoresPrioridade();
 
   return (
     <div
-      className={`flex gap-3.5 p-4 rounded-xl border border-[#e6eaf1] border-l-4 ${prioridadeStyles.borda} bg-white shadow-sm hover:shadow-md transition-all select-none`}
+      className={`flex flex-col xl:flex-row xl:items-stretch justify-between gap-4 p-4 rounded-xl border border-slate-200 border-l-4 ${cores.borda} bg-white shadow-xs hover:shadow-md transition-all select-none w-full`}
     >
-      {/* Avatar */}
-      <div
-        className={`w-10.5 h-10.5 rounded-[11px] flex items-center justify-center font-extrabold text-[13.5px] shrink-0 ${prioridadeStyles.avatarBg} ${prioridadeStyles.avatarTexto}`}
-      >
-        {oportunidade.iniciais}
-      </div>
-
-      {/* Conteúdo Principal */}
-      <div className="flex-1 min-w-0">
-        {/* Topo: Prioridade + Status + Data */}
-        <div className="flex items-center gap-2 mb-0.5 flex-wrap">
-          <span className={`flex items-center gap-1.5 text-[10.5px] font-extrabold tracking-wider uppercase ${prioridadeStyles.texto}`}>
-            <span className={`w-1.75 h-1.75 rounded-full ${prioridadeStyles.dot}`} />
-            {oportunidade.prioridade}
-          </span>
-
-          <span className={`text-[10.5px] font-bold px-2 py-0.5 rounded-md ${estiloStatus}`}>
-            {oportunidade.status}
-          </span>
-
-          <span className="text-[11.5px] text-sidebar-text">
-            Criada em {oportunidade.dataCriacao}
-          </span>
+      {/* lado esquerdo: avatar e informacoes da oportunidade */}
+      <div className="flex gap-3.5 flex-1 min-w-0">
+        {/* avatar com iniciais do cliente */}
+        <div
+          className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm shrink-0 ${cores.avatarFundo} ${cores.avatarTexto}`}
+        >
+          {oportunidade.iniciais}
         </div>
 
-        {/* Nome do Cliente */}
-        <h4 className="font-extrabold text-[14.5px] text-[#0f1a2e] mt-0.5 leading-tight">
-          {oportunidade.nomeCliente}
-        </h4>
+        {/* informacoes centrais da oportunidade */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-1 flex-wrap">
+            <span className={`flex items-center gap-1.5 text-xs font-bold uppercase ${cores.texto}`}>
+              <span className={`w-2 h-2 rounded-full ${cores.ponto}`} />
+              {oportunidade.prioridade}
+            </span>
 
-        {/* Tipo de Oportunidade */}
-        <div className="text-[12px] text-[#1d4ed8] font-bold mt-0.5">
-          {oportunidade.tipo}
-        </div>
+            <span className={`text-xs font-semibold px-2 py-0.5 rounded-md ${getCorStatus()}`}>
+              {oportunidade.status}
+            </span>
 
-        {/* Descrição / Justificativa */}
-        <p className="text-[12.8px] text-sidebar-footer mt-1.5 leading-[1.45]">
-          {oportunidade.descricao}
-        </p>
+            <span className="text-xs text-slate-400">
+              Criada em {formatarDataBR(oportunidade.dataCriacao)}
+            </span>
+          </div>
 
-        {/* Último Contato */}
-        <div className="text-[11.5px] text-sidebar-text mt-2">
-          Último contato: {oportunidade.ultimoContato}
+          <h4 className="font-bold text-sm text-slate-900 leading-tight">
+            {oportunidade.nomeCliente}
+          </h4>
+
+          <div className="text-xs text-blue-600 font-semibold mt-0.5">
+            {oportunidade.tipo}
+          </div>
+
+          <p className="text-xs text-slate-600 mt-1 leading-relaxed">
+            {oportunidade.descricao}
+          </p>
+
+          <div className="text-xs text-slate-400 mt-2">
+            Último contato: {oportunidade.ultimoContato}
+          </div>
         </div>
       </div>
 
-      {/* 3. Lado Direito (opp-side) */}
-      <div className="flex flex-col items-end justify-between shrink-0 ml-1.5">
-        {/* Contato sugerido */}
-        <div className="text-right text-[11px] text-sidebar-footer">
-          Contato sugerido
-          <b className="block text-[12.5px] text-[#0f1a2e] font-extrabold">
+      {/* lado direito ou inferior: contato sugerido e botoes */}
+      <div className="flex flex-row xl:flex-col items-center xl:items-end justify-between gap-3 shrink-0 pt-3 xl:pt-0 border-t xl:border-t-0 border-slate-100">
+        <div className="text-left xl:text-right text-xs text-slate-500">
+          Contato sugerido:
+          <b className="block text-xs text-slate-800 font-bold mt-0.5">
             {oportunidade.contatoSugerido}
           </b>
         </div>
 
-        {/* Linha de Botões (btn-row) */}
-        <div className="flex items-center gap-2 mt-auto pt-3">
+        {/* botoes de acao */}
+        <div className="flex items-center gap-1.5 flex-wrap justify-end">
           <button
-            onClick={handleVerCliente}
-            className="rounded-[9px] border border-[#e6eaf1] bg-white px-3 py-1.5 text-[12.3px] font-bold text-[#0f1a2e] whitespace-nowrap hover:border-[#1d4ed8] hover:text-[#1d4ed8] transition-all cursor-pointer"
+            type="button"
+            onClick={irParaCliente}
+            className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:border-blue-600 hover:text-blue-600 transition-colors cursor-pointer"
           >
             Ver cliente
           </button>
 
+          {oportunidade.status !== 'Encerrada' && (
+            <button
+              type="button"
+              onClick={() => setModalEncerrarAberto(true)}
+              className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 hover:border-rose-300 hover:text-rose-600 transition-colors cursor-pointer"
+            >
+              Encerrar
+            </button>
+          )}
+
           <button
-            onClick={() => !contatoFeito && setModalContato(true)}
-            disabled={contatoFeito}
-            className={`rounded-[9px] border px-3.5 py-1.5 text-[12.3px] font-bold whitespace-nowrap transition-all shadow-sm ${contatoFeito ? 'border-emerald-600 bg-emerald-600 text-white cursor-not-allowed' : 'border-[#1d4ed8] bg-[#1d4ed8] text-white hover:bg-[#1439a3] hover:border-[#1439a3] cursor-pointer'}`}
+            type="button"
+            onClick={() => {
+              if (!contatoFeito && oportunidade.status !== 'Encerrada') {
+                setModalContatoAberto(true);
+              }
+            }}
+            disabled={contatoFeito || oportunidade.status === 'Encerrada'}
+            className={`rounded-lg border px-3.5 py-1.5 text-xs font-semibold transition-all shadow-xs ${getEstiloBotaoContato()}`}
           >
             {contatoFeito ? 'Contato feito!' : 'Registrar contato'}
           </button>
         </div>
       </div>
-      {modalContato && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setModalContato(false); }}>
-          <section role="dialog" aria-modal="true" aria-labelledby={`contato-titulo-${oportunidade.id}`} className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
-            <h2 id={`contato-titulo-${oportunidade.id}`} className="text-lg font-bold text-slate-900">Registrar contato</h2>
-            <p className="mt-1 text-sm text-slate-500">Como o contato com {oportunidade.nomeCliente} foi realizado?</p>
-            <div className="mt-5 grid grid-cols-2 gap-2">
+
+      {/* modal para registrar novo contato */}
+      {modalContatoAberto && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
+            <h3 className="text-base font-bold text-slate-900">
+              Registrar contato
+            </h3>
+            <p className="mt-1 text-xs text-slate-500">
+              Como o contato com {oportunidade.nomeCliente} foi realizado?
+            </p>
+
+            <div className="mt-4 grid grid-cols-2 gap-2">
               {['WhatsApp', 'E-mail', 'Telefone', 'Presencial'].map((opcao) => (
-                <button key={opcao} type="button" onClick={() => setCanal(opcao)} className={`rounded-lg border px-3 py-2.5 text-sm font-semibold ${canal === opcao ? 'border-blue-700 bg-blue-50 text-blue-700' : 'border-slate-200 text-slate-700 hover:border-blue-300'}`}>{opcao}</button>
+                <button
+                  key={opcao}
+                  type="button"
+                  onClick={() => setCanalSelecionado(opcao)}
+                  className={`rounded-lg border px-3 py-2 text-xs font-semibold cursor-pointer ${canalSelecionado === opcao
+                      ? 'border-blue-600 bg-blue-50 text-blue-700'
+                      : 'border-slate-200 text-slate-700 hover:border-slate-300'
+                    }`}
+                >
+                  {opcao}
+                </button>
               ))}
             </div>
-            {erroContato && <p role="alert" className="mt-3 text-sm text-red-600">{erroContato}</p>}
+
+            {erroContato && (
+              <p className="mt-3 text-xs text-rose-600 font-medium">
+                {erroContato}
+              </p>
+            )}
+
             <div className="mt-6 flex justify-end gap-2">
-              <button type="button" onClick={() => setModalContato(false)} className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600">Cancelar</button>
-              <button type="button" onClick={registrarContato} disabled={!canal || salvando} className="rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50">{salvando ? 'Salvando...' : 'Confirmar contato'}</button>
+              <button
+                type="button"
+                onClick={() => setModalContatoAberto(false)}
+                className="rounded-lg border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={salvarContato}
+                disabled={!canalSelecionado || salvandoContato}
+                className="rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-50 cursor-pointer"
+              >
+                {salvandoContato ? 'Salvando...' : 'Confirmar contato'}
+              </button>
             </div>
-          </section>
+          </div>
+        </div>
+      )}
+
+      {/* modal para confirmar encerramento */}
+      {modalEncerrarAberto && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
+            <h3 className="text-base font-bold text-slate-900">
+              Encerrar oportunidade
+            </h3>
+            <p className="mt-2 text-xs text-slate-600 leading-relaxed">
+              Deseja encerrar o ciclo de acompanhamento desta oportunidade para{' '}
+              <b className="text-slate-800">{oportunidade.nomeCliente}</b>?
+            </p>
+            <p className="mt-1 text-xs text-slate-400">
+              O status será alterado para encerrada e o registro ficará no histórico.
+            </p>
+
+            {erroEncerramento && (
+              <p className="mt-3 text-xs text-rose-600 font-medium">
+                {erroEncerramento}
+              </p>
+            )}
+
+            <div className="mt-6 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setModalEncerrarAberto(false)}
+                disabled={salvandoEncerramento}
+                className="rounded-lg border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={confirmarEncerramento}
+                disabled={salvandoEncerramento}
+                className="rounded-lg bg-rose-600 px-4 py-2 text-xs font-semibold text-white hover:bg-rose-700 disabled:opacity-50 cursor-pointer"
+              >
+                {salvandoEncerramento ? 'Encerrando...' : 'Sim, encerrar'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

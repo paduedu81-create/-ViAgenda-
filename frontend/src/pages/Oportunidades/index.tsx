@@ -53,7 +53,7 @@ export default function Oportunidades() {
         tipo: op.tipo_origem === 'pos_viagem' ? 'Pós-viagem' : op.tipo_origem === 'fim_pagamento' ? 'Fim de pagamento' : 'Acompanhamento',
         descricao: op.descricao || '',
         prioridade: op.tipo_origem === 'pos_viagem' ? 'ALTA' : 'MEDIA',
-        status: op.status_oportunidade === 'ativa' ? 'Aberta' : 'Em andamento',
+        status: op.status_oportunidade === 'encerrada' ? 'Encerrada' : op.status_oportunidade === 'ativa' ? 'Aberta' : 'Em andamento',
         dataCriacao: op.data_geracao ? op.data_geracao.slice(0, 10) : '',
         ultimoContato: 'Sem contato',
         contatoSugerido: op.tipo_origem === 'pos_viagem' ? 'WhatsApp pós-viagem' : 'Ligação comercial',
@@ -64,6 +64,20 @@ export default function Oportunidades() {
       .catch((erro) => console.error("Erro ao carregar oportunidades:", erro))
       .finally(() => setCarregando(false))
   }, [])
+
+  // atualiza o status da oportunidade encerrada na listagem local
+  function handleEncerrarOportunidade(id: string | number) {
+    const listaAtualizada = oportunidades.map((op) => {
+      if (op.id === id) {
+        return {
+          ...op,
+          status: 'Encerrada' as const,
+        };
+      }
+      return op;
+    });
+    setOportunidades(listaAtualizada);
+  }
 
   // lista filtrada por texto, tipo de oportunidade e prioridade
   const oportunidadesFiltradas = useMemo(() => {
@@ -164,6 +178,7 @@ export default function Oportunidades() {
               key={op.id}
               oportunidade={op}
               onRegistrarContato={(id) => console.log('registrar contato', id)}
+              onEncerrarOportunidade={handleEncerrarOportunidade}
             />
           ))
         ) : (

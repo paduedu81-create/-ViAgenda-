@@ -20,3 +20,20 @@ export function calcularDiasAtras(dataStr?: string | null): string {
   if (diffDias === 1) return '1 dia atrás';
   return `${diffDias} dias atrás`;
 }
+
+// formata data iso para o formato brasileiro dd/mm/aaaa
+export function formatarDataBR(dataStr?: string | null): string {
+  if (!dataStr || dataStr === '—' || dataStr === 'Sem contato') return '—';
+
+  // extrai a parte aaaa-mm-dd da string
+  const dataLimpa = dataStr.slice(0, 10);
+  const partes = dataLimpa.split('-');
+  if (partes.length === 3 && partes[0].length === 4) {
+    const [ano, mes, dia] = partes;
+    return `${dia}/${mes}/${ano}`;
+  }
+
+  const data = new Date(dataStr);
+  if (isNaN(data.getTime())) return dataStr;
+  return data.toLocaleDateString('pt-BR', { timeZone: 'UTC' });
+}
