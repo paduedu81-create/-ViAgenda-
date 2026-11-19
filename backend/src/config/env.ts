@@ -12,6 +12,9 @@ const schema = z.object({
   ADMIN_NAME: z.string().optional(),
   ADMIN_EMAIL: z.string().email().optional(),
   ADMIN_PASSWORD_HASH: z.string().optional(),
+  SMTP_USER: z.string().optional(),
+  SMTP_PASS: z.string().optional(),
+  EMAIL_FROM: z.string().default('ViAgenda <noreply@viagenda.com>'),
 });
 
 const parsed = schema.safeParse(process.env);

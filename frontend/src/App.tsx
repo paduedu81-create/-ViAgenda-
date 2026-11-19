@@ -3,6 +3,7 @@ import { AuthProvider } from './contexts/AuthContext';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import AppLayout from './components/layout/AppLayout';
 import Login from './pages/Login';
+import RedefinirSenha from './pages/RedefinirSenha';
 import Dashboard from './pages/Dashboard';
 import Oportunidades from './pages/Oportunidades';
 import Clientes from './pages/Clientes';
@@ -14,8 +15,9 @@ function App() {
     <AuthProvider>
       <BrowserRouter>
         <Routes>
-          {/* rota pública de login */}
+          {/* rota pública de login e recuperação de senha */}
           <Route path="/login" element={<Login />} />
+          <Route path="/redefinir-senha" element={<RedefinirSenha />} />
 
           {/* rotas autenticadas protegidas */}
           <Route element={<ProtectedRoute />}>
