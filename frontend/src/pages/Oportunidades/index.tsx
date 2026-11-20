@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { Search } from 'lucide-react';
 import CardOportunidade from '../Dashboard/components/CardOportunidade';
 import CardPrioridade from './components/CardPrioridade';
+import SimuladorOportunidades from './components/SimuladorOportunidades';
 import { api } from '../../services/api';
 import type { Oportunidade, OportunidadeApi } from './oportunidades.types';
 
@@ -18,6 +19,9 @@ export default function Oportunidades() {
 
   const [oportunidades, setOportunidades] = useState<Oportunidade[]>([]);
   const [carregando, setCarregando] = useState<boolean>(true);
+
+  // contador usado para recarregar a lista depois de uma simulação
+  const [recarregar, setRecarregar] = useState(0);
 
   // cálculo dos totais por prioridade
   const totalAlta = oportunidades.filter((op) => op.prioridade === 'ALTA').length;
@@ -53,7 +57,7 @@ export default function Oportunidades() {
         tipo: op.tipo_origem === 'pos_viagem' ? 'Pós-viagem' : op.tipo_origem === 'fim_pagamento' ? 'Fim de pagamento' : 'Acompanhamento',
         descricao: op.descricao || '',
         prioridade: op.tipo_origem === 'pos_viagem' ? 'ALTA' : 'MEDIA',
-        status: op.status_oportunidade === 'encerrada' ? 'Encerrada' : op.status_oportunidade === 'ativa' ? 'Aberta' : 'Em andamento',
+        status: op.status_oportunidade === 'ativa' ? 'Aberta' : 'Em andamento',
         dataCriacao: op.data_geracao ? op.data_geracao.slice(0, 10) : '',
         ultimoContato: 'Sem contato',
         contatoSugerido: op.tipo_origem === 'pos_viagem' ? 'WhatsApp pós-viagem' : 'Ligação comercial',
@@ -63,21 +67,7 @@ export default function Oportunidades() {
     })
       .catch((erro) => console.error("Erro ao carregar oportunidades:", erro))
       .finally(() => setCarregando(false))
-  }, [])
-
-  // atualiza o status da oportunidade encerrada na listagem local
-  function handleEncerrarOportunidade(id: string | number) {
-    const listaAtualizada = oportunidades.map((op) => {
-      if (op.id === id) {
-        return {
-          ...op,
-          status: 'Encerrada' as const,
-        };
-      }
-      return op;
-    });
-    setOportunidades(listaAtualizada);
-  }
+  }, [recarregar])
 
   // lista filtrada por texto, tipo de oportunidade e prioridade
   const oportunidadesFiltradas = useMemo(() => {
@@ -132,6 +122,9 @@ export default function Oportunidades() {
         ))}
       </div>
 
+      {/* simulação de cenários com datas fictícias */}
+      <SimuladorOportunidades onConcluido={() => setRecarregar((n) => n + 1)} />
+
       {/* busca e filtros de oportunidade e prioridade */}
       <div className="flex flex-col gap-3">
         {/* campo de busca */}
@@ -178,7 +171,6 @@ export default function Oportunidades() {
               key={op.id}
               oportunidade={op}
               onRegistrarContato={(id) => console.log('registrar contato', id)}
-              onEncerrarOportunidade={handleEncerrarOportunidade}
             />
           ))
         ) : (

@@ -1,11 +1,27 @@
 import { useEffect, useState } from 'react';
 import { Search, Plus, User, Phone, Mail, MapPin, Calendar, Clock, AlertCircle, X, Check } from 'lucide-react';
-import { extrairIniciais, calcularDiasAtras, formatarDataBR } from '../../utils/formatters';
+import { extrairIniciais, calcularDiasAtras } from '../../utils/formatters';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../../services/api';
 import type { Cliente, ClienteApi, ClientesApiResponse, PerfilCliente } from './clientes.types';
 
 type FiltroPrioridade = 'todas' | 'alta' | 'media' | 'baixa';
+
+// a API devolve 20 clientes por página por padrão (em ordem alfabética), então um cliente recém-cadastrado
+// podia ficar fora da lista; aqui buscamos todas as páginas para a tela mostrar a carteira completa
+async function buscarTodosClientes(termo: string): Promise<ClientesApiResponse> {
+  const limite = 100;
+  const primeira = await api<ClientesApiResponse>(`/clientes?busca=${termo}&limite=${limite}&pagina=1`);
+  const paginas = primeira.paginacao?.paginas || 1;
+  if (paginas <= 1) return primeira;
+
+  const restantes = await Promise.all(
+    Array.from({ length: paginas - 1 }, (_, i) =>
+      api<ClientesApiResponse>(`/clientes?busca=${termo}&limite=${limite}&pagina=${i + 2}`)
+    )
+  );
+  return { ...primeira, dados: [...primeira.dados, ...restantes.flatMap((r) => r.dados || [])] };
+}
 
 // configuracao de cores e estilos por prioridade
 const prioridadeEstilos = {
@@ -56,7 +72,7 @@ export default function Clientes() {
   const carregarClientes = () => {
     setCarregando(true);
     const termo = encodeURIComponent(busca.trim());
-    api<ClientesApiResponse>(`/clientes?busca=${termo}`)
+    buscarTodosClientes(termo)
       .then((res) => {
         // mapeia os campos do backend para a interface Cliente da tela
         const listaMapeada: Cliente[] = (res.dados || []).map((cli: ClienteApi) => ({
@@ -284,12 +300,12 @@ export default function Clientes() {
 
                     {/* última viagem */}
                     <td className="py-3.5 px-4 text-xs text-slate-700">
-                      {cliente.lastTrip ? formatarDataBR(cliente.lastTrip) : <span className="text-slate-300 font-bold">—</span>}
+                      {cliente.lastTrip || <span className="text-slate-300 font-bold">—</span>}
                     </td>
 
                     {/* próxima viagem */}
                     <td className="py-3.5 px-4 text-xs text-slate-700">
-                      {cliente.nextTrip ? formatarDataBR(cliente.nextTrip) : <span className="text-slate-300 font-bold">—</span>}
+                      {cliente.nextTrip || <span className="text-slate-300 font-bold">—</span>}
                     </td>
 
                     {/* último contato */}
@@ -407,7 +423,7 @@ export default function Clientes() {
                     Última Viagem:
                   </span>
                   <span className="font-semibold text-slate-800">
-                    {clienteDetalhes.lastTrip ? formatarDataBR(clienteDetalhes.lastTrip) : 'Nenhum histórico'}
+                    {clienteDetalhes.lastTrip || 'Nenhum histórico'}
                   </span>
                 </div>
                 <div className="flex items-center justify-between text-xs">
@@ -416,7 +432,7 @@ export default function Clientes() {
                     Próxima Viagem:
                   </span>
                   <span className="font-semibold text-slate-800">
-                    {clienteDetalhes.nextTrip ? formatarDataBR(clienteDetalhes.nextTrip) : 'Não agendada'}
+                    {clienteDetalhes.nextTrip || 'Não agendada'}
                   </span>
                 </div>
                 <div className="flex items-center justify-between text-xs">

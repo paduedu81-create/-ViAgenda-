@@ -114,7 +114,7 @@ export async function gerarOportunidades() {
 
     // Pós-viagem: primeira oportunidade no dia seguinte ao retorno; recorrência mensal baseada no ciclo já gerado.
     const viagens = await c.query(
-      `SELECT v.id_viagem, v.id_cliente, v.data_retorno, coalesce(max(o.ciclo_recorrencia), 0)::int ciclo
+      `SELECT v.id_viagem, v.id_cliente, v.data_retorno, v.data_retorno::text data_retorno_txt, coalesce(max(o.ciclo_recorrencia), 0)::int ciclo
        FROM viagem v
        JOIN cliente cl USING(id_cliente)
        LEFT JOIN oportunidade o ON o.id_viagem_referencia=v.id_viagem AND o.tipo_origem='pos_viagem'
@@ -126,7 +126,7 @@ export async function gerarOportunidades() {
     );
 
     for (const v of viagens.rows) {
-      const next = new Date(`${String(v.data_retorno).slice(0, 10)}T12:00:00Z`);
+      const next = new Date(`${String(v.data_retorno_txt).slice(0, 10)}T12:00:00Z`);
       next.setUTCMonth(next.getUTCMonth() + Number(v.ciclo));
       next.setUTCDate(next.getUTCDate() + 1);
       const due = next.toISOString().slice(0, 10);

@@ -4,7 +4,7 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import swaggerUi from 'swagger-ui-express';
 import { env } from './config/env';
-import { authenticate } from './middlewares/auth';
+import { authenticate, authorize } from './middlewares/auth';
 import { errorHandler } from './middlewares/errorHandler';
 import auth from './modules/auth/auth';
 import clientes from './modules/clientes/clientes';
@@ -16,6 +16,7 @@ import oportunidades from './modules/oportunidades/oportunidades';
 import contatos from './modules/contatos/contatos';
 import dashboard from './modules/dashboard/dashboard';
 import relatorios from './modules/relatorios/relatorios';
+import simulacao from './modules/simulacao/simulacao';
 
 const app = express();
 
@@ -71,6 +72,7 @@ app.use('/api/oportunidades', authenticate, oportunidades);
 app.use('/api/contatos', authenticate, contatos);
 app.use('/api/dashboard', authenticate, dashboard);
 app.use('/api/relatorios', authenticate, relatorios);
+app.use('/api/simulacao', authenticate, authorize('admin'), simulacao);
 
 app.use((_req, res) => res.status(404).json({ error: 'Rota não encontrada' }));
 app.use(errorHandler);
