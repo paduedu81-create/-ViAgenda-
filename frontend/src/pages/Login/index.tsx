@@ -192,18 +192,7 @@ export default function Login() {
                 <label className="block text-xs font-bold text-slate-700 tracking-wide">
                   Senha de acesso
                 </label>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setModalRecuperarAberto(true);
-                    setMensagemRecuperacao(null);
-                    setErroRecuperacao(null);
-                    setEmailRecuperacao(email);
-                  }}
-                  className="text-xs text-brand-primary hover:underline font-semibold cursor-pointer"
-                >
-                  Esqueceu a senha?
-                </button>
+
               </div>
               <div className="relative">
                 <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
@@ -223,6 +212,18 @@ export default function Login() {
                   {mostrarSenha ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
               </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setModalRecuperarAberto(true);
+                  setMensagemRecuperacao(null);
+                  setErroRecuperacao(null);
+                  setEmailRecuperacao(email);
+                }}
+                className="text-xs text-brand-primary hover:underline font-semibold cursor-pointer"
+              >
+                Esqueceu a senha?
+              </button>
             </div>
 
             {/* checkbox lembrar de mim */}
