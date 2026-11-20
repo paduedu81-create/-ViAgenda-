@@ -4,9 +4,23 @@ import CardOportunidade from '../Dashboard/components/CardOportunidade';
 import CardPrioridade from './components/CardPrioridade';
 import SimuladorOportunidades from './components/SimuladorOportunidades';
 import { api } from '../../services/api';
-import type { Oportunidade, OportunidadeApi } from './oportunidades.types';
+import type { Oportunidade, OportunidadeApi, InteresseApi } from './oportunidades.types';
 
 type FiltroPrioridade = 'todas' | 'ALTA' | 'MEDIA' | 'BAIXA';
+
+// tira acentos e maiúsculas: "Canadá", "Canada" e "CANADA" passam a ser o mesmo valor
+const normalizar = (texto: string) =>
+  texto.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+
+// lista de países do cliente, sem repetir (usa o país do destino; se não houver, o nome do destino)
+function extrairPaises(interesses?: InteresseApi[] | null): string[] {
+  const vistos = new Map<string, string>();
+  (interesses || []).forEach((i) => {
+    const nome = (i.pais || i.nome_destino || '').trim();
+    if (nome && !vistos.has(normalizar(nome))) vistos.set(normalizar(nome), nome);
+  });
+  return [...vistos.values()];
+}
 
 export default function Oportunidades() {
   // estado para o texto de busca
@@ -14,6 +28,8 @@ export default function Oportunidades() {
 
   const [prioridadeAtiva, setPrioridadeAtiva] = useState<FiltroPrioridade>('todas');
   const [tipoAtivo, setTipoAtivo] = useState('todos');
+  // país de interesse selecionado no filtro (guarda o nome sem acento; 'todos' = sem filtro)
+  const [paisAtivo, setPaisAtivo] = useState('todos');
 
   const tiposOportunidade = ['Pós-viagem', 'Fim de pagamento', 'Acompanhamento'];
 
@@ -61,6 +77,7 @@ export default function Oportunidades() {
         dataCriacao: op.data_geracao ? op.data_geracao.slice(0, 10) : '',
         ultimoContato: 'Sem contato',
         contatoSugerido: op.tipo_origem === 'pos_viagem' ? 'WhatsApp pós-viagem' : 'Ligação comercial',
+        paisesInteresse: extrairPaises(op.interesses),
       }));
       setOportunidades(listaMapeada);
 
@@ -69,9 +86,23 @@ export default function Oportunidades() {
       .finally(() => setCarregando(false))
   }, [recarregar])
 
-  // lista filtrada por texto, tipo de oportunidade e prioridade
+  // países que aparecem nos interesses das oportunidades, com a quantidade de oportunidades de cada um
+  const paisesDisponiveis = useMemo(() => {
+    const mapa = new Map<string, { chave: string; nome: string; total: number }>();
+    oportunidades.forEach((op) => {
+      (op.paisesInteresse || []).forEach((pais) => {
+        const chave = normalizar(pais);
+        const atual = mapa.get(chave);
+        if (atual) atual.total += 1;
+        else mapa.set(chave, { chave, nome: pais, total: 1 });
+      });
+    });
+    return [...mapa.values()].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+  }, [oportunidades]);
+
+  // lista filtrada por texto, tipo de oportunidade, prioridade e país de interesse
   const oportunidadesFiltradas = useMemo(() => {
-    const termo = busca.trim().toLowerCase();
+    const termo = normalizar(busca);
 
     const ordemPrioridade = { ALTA: 0, MEDIA: 1, BAIXA: 2 };
 
@@ -79,18 +110,21 @@ export default function Oportunidades() {
       .filter((op) => {
         const batePrioridade = prioridadeAtiva === 'todas' || op.prioridade === prioridadeAtiva;
         const bateTipo = tipoAtivo === 'todos' || op.tipo === tipoAtivo;
+        const batePais =
+          paisAtivo === 'todos' || (op.paisesInteresse || []).some((pais) => normalizar(pais) === paisAtivo);
 
         // filtro de texto de busca
         const bateBusca =
           !termo ||
-          op.nomeCliente.toLowerCase().includes(termo) ||
-          op.tipo.toLowerCase().includes(termo) ||
-          op.descricao.toLowerCase().includes(termo);
+          normalizar(op.nomeCliente).includes(termo) ||
+          normalizar(op.tipo).includes(termo) ||
+          normalizar(op.descricao).includes(termo) ||
+          (op.paisesInteresse || []).some((pais) => normalizar(pais).includes(termo));
 
-        return batePrioridade && bateTipo && bateBusca;
+        return batePrioridade && bateTipo && batePais && bateBusca;
       })
       .sort((a, b) => ordemPrioridade[a.prioridade] - ordemPrioridade[b.prioridade]);
-  }, [oportunidades, busca, prioridadeAtiva, tipoAtivo]);
+  }, [oportunidades, busca, prioridadeAtiva, tipoAtivo, paisAtivo]);
 
   const opcoesFiltro: { id: FiltroPrioridade; label: string }[] = [
     { id: 'todas', label: 'Todas' },
@@ -134,7 +168,7 @@ export default function Oportunidades() {
             type="text"
             value={busca}
             onChange={(e) => setBusca(e.target.value)}
-            placeholder="Buscar por cliente ou tipo de oportunidade..."
+            placeholder="Buscar por cliente, tipo de oportunidade ou país de interesse..."
             className="w-full bg-white border rounded-xl pl-10 pr-4 py-2 text-sm placeholder:text-slate-400 focus:outline-none focus:border-brand-primary focus:ring-1 focus:ring-brand-primary transition-all shadow-sm"
           />
         </div>
@@ -144,6 +178,11 @@ export default function Oportunidades() {
           <select id="filtro-tipo" value={tipoAtivo} onChange={(e) => setTipoAtivo(e.target.value)} className="rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-600">
             <option value="todos">Todas as oportunidades</option>
             {tiposOportunidade.map((tipo) => <option key={tipo} value={tipo}>{tipo}</option>)}
+          </select>
+          <label className="sr-only" htmlFor="filtro-pais">Filtrar por país de interesse</label>
+          <select id="filtro-pais" value={paisAtivo} onChange={(e) => setPaisAtivo(e.target.value)} className="rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-600">
+            <option value="todos">Todos os países de interesse</option>
+            {paisesDisponiveis.map((pais) => <option key={pais.chave} value={pais.chave}>{pais.nome} ({pais.total})</option>)}
           </select>
           {opcoesFiltro.map((filtro) => {
             const isAtivo = prioridadeAtiva === filtro.id;
@@ -162,6 +201,14 @@ export default function Oportunidades() {
           })}
         </div>
       </div>
+
+      {/* resumo do filtro de país */}
+      {paisAtivo !== 'todos' && (
+        <p className="text-xs font-semibold text-slate-500">
+          {oportunidadesFiltradas.length} oportunidade(s) de clientes com interesse em{' '}
+          {paisesDisponiveis.find((p) => p.chave === paisAtivo)?.nome || paisAtivo}
+        </p>
+      )}
 
       {/* listagem de oportunidades */}
       <div className="flex flex-col gap-3">

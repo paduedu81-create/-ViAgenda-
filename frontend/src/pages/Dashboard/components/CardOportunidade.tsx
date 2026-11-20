@@ -215,6 +215,18 @@ export function CardOportunidade({
             {oportunidade.descricao}
           </p>
 
+        {/* Paises de interesse do cliente */}
+        {oportunidade.paisesInteresse && oportunidade.paisesInteresse.length > 0 && (
+          <div className="flex flex-wrap items-center gap-1.5 mt-2">
+            <span className="text-[11.5px] text-sidebar-text">Interesse em:</span>
+            {oportunidade.paisesInteresse.map((pais) => (
+              <span key={pais} className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-[#e8eefd] text-[#1d4ed8]">
+                {pais}
+              </span>
+            ))}
+          </div>
+        )}
+
           <div className="text-xs text-slate-400 mt-2">
             Último contato: {oportunidade.ultimoContato}
           </div>

@@ -24,20 +24,19 @@ router.get(
         c.email,
         v.data_retorno,
         d.nome_destino,
-        CASE
-          WHEN o.id_viagem_referencia IS NULL THEN NULL
-          ELSE (
-            SELECT json_agg(
-              json_build_object(
-                'nome_destino', di.nome_destino,
-                'descricao_interesse', ci.descricao_interesse
-              )
-            )
-            FROM cliente_interesse ci
-            JOIN destino di USING(id_destino)
-            WHERE ci.id_cliente=o.id_cliente
-          )
-        END interesses
+        (
+          SELECT coalesce(json_agg(
+            json_build_object(
+              'nome_destino', di.nome_destino,
+              'cidade', di.cidade,
+              'pais', di.pais,
+              'descricao_interesse', ci.descricao_interesse
+            ) ORDER BY ci.data_registro
+          ), '[]'::json)
+          FROM cliente_interesse ci
+          JOIN destino di USING(id_destino)
+          WHERE ci.id_cliente=o.id_cliente
+        ) interesses
       FROM oportunidade o
       JOIN cliente c USING(id_cliente)
       LEFT JOIN viagem v ON v.id_viagem=o.id_viagem_referencia

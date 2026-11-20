@@ -10,6 +10,16 @@ export interface Oportunidade {
   dataCriacao: string;
   ultimoContato: string;
   contatoSugerido: string;
+  // países de interesse do cliente (sem repetição), usados no filtro da tela de oportunidades
+  paisesInteresse?: string[];
+}
+
+// interesse de viagem do cliente, vindo junto com cada oportunidade
+export interface InteresseApi {
+  nome_destino: string | null;
+  cidade?: string | null;
+  pais?: string | null;
+  descricao_interesse: string | null;
 }
 
 // tipagem do item retornado pelo endpoint GET /api/oportunidades
@@ -29,4 +39,5 @@ export interface OportunidadeApi {
   email: string | null;
   data_retorno: string | null;
   nome_destino: string | null;
+  interesses?: InteresseApi[] | null;
 }
