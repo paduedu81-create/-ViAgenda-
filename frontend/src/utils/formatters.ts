@@ -35,5 +35,22 @@ export function formatarDataBR(dataStr?: string | null): string {
 
   const data = new Date(dataStr);
   if (isNaN(data.getTime())) return dataStr;
-  return data.toLocaleDateString('pt-BR', { timeZone: 'UTC' });
+  return data.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+}
+
+// formata data e hora iso para o formato brasileiro dd/mm/aaaa as hh:mm
+export function formatarDataHoraBR(dataStr?: string | null): string {
+  if (!dataStr || dataStr === '—' || dataStr === 'Sem contato') return '—';
+
+  const data = new Date(dataStr);
+  if (isNaN(data.getTime())) return dataStr;
+
+  return data.toLocaleString('pt-BR', {
+    timeZone: 'America/Sao_Paulo',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
 }

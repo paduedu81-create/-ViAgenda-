@@ -4,6 +4,7 @@ import { transaction } from '../../database/pool';
 import { validateBody } from '../../middlewares/validate';
 import { asyncHandler } from '../../utils/asyncHandler';
 import { AppError } from '../../utils/errors';
+import { hojeBR } from '../../utils/date';
 
 const router = Router();
 
@@ -115,7 +116,7 @@ router.post(
           p.valor_total_pagamento,
           statusPagamento,
           p.forma_pagamento || null,
-          quitado ? new Date().toISOString().slice(0, 10) : null,
+          quitado ? hojeBR() : null,
         ]
       );
 
@@ -127,7 +128,7 @@ router.post(
             x.numero_parcela,
             x.valor_parcela,
             x.data_vencimento,
-            x.status_parcela === 'pago' ? x.data_pagamento || new Date().toISOString().slice(0, 10) : null,
+            x.status_parcela === 'pago' ? x.data_pagamento || hojeBR() : null,
             x.status_parcela,
           ]
         );

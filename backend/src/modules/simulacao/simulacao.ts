@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { query, transaction } from '../../database/pool';
 import { asyncHandler } from '../../utils/asyncHandler';
 import { AppError } from '../../utils/errors';
+import { horaAtualBR } from '../../utils/date';
 import { gerarOportunidades } from '../oportunidades/oportunidades';
 
 const router = Router();
@@ -64,11 +65,7 @@ router.post(
       throw new AppError(404, 'Cenário de simulação não encontrado');
     }
 
-    const hora = new Date().toLocaleTimeString('pt-BR', {
-      timeZone: 'America/Sao_Paulo',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
+    const hora = horaAtualBR();
     const nome = `Simulação ${cenario.titulo} ${hora}`;
 
     const idCliente = await transaction(async (c) => {

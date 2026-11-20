@@ -1,3 +1,6 @@
+// define o fuso horario padrao do node para brasilia
+process.env.TZ = 'America/Sao_Paulo';
+
 import app from './app';
 import { env } from './config/env';
 import { pool } from './database/pool';

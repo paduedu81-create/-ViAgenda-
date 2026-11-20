@@ -1,6 +1,6 @@
 import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft, UserX, Phone, Mail, User, Plus, Plane, CreditCard, Star, X } from 'lucide-react';
-import { extrairIniciais, calcularDiasAtras } from '../../utils/formatters';
+import { extrairIniciais, calcularDiasAtras, formatarDataBR } from '../../utils/formatters';
 import { useState, useEffect, useCallback } from 'react';
 import { api } from '../../services/api';
 import type {
@@ -69,13 +69,7 @@ function Timeline({ itens }: { itens: EventoHistorico[] }) {
   );
 }
 
-// formata data iso para formato brasileiro
-function formatarDataBR(dataIso?: string | null): string {
-  if (!dataIso) return '—';
-  const data = new Date(dataIso);
-  if (isNaN(data.getTime())) return dataIso;
-  return data.toLocaleDateString('pt-BR', { timeZone: 'UTC' });
-}
+
 
 // formata valor em moeda brasileira
 function formatarMoeda(valor?: number | string | null): string {

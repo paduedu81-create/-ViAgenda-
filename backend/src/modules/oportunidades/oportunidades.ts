@@ -4,6 +4,7 @@ import { query, transaction } from '../../database/pool';
 import { asyncHandler } from '../../utils/asyncHandler';
 import { validateBody } from '../../middlewares/validate';
 import { AppError } from '../../utils/errors';
+import { hojeBR } from '../../utils/date';
 
 const router = Router();
 
@@ -130,7 +131,7 @@ export async function gerarOportunidades() {
       next.setUTCDate(next.getUTCDate() + 1);
       const due = next.toISOString().slice(0, 10);
 
-      if (due <= new Date().toISOString().slice(0, 10)) {
+      if (due <= hojeBR()) {
         const ins = await c.query(
           "INSERT INTO oportunidade(id_cliente, id_viagem_referencia, tipo_origem, ciclo_recorrencia, descricao, data_proximo_contato, status_oportunidade) VALUES($1, $2, 'pos_viagem', $3, 'Acompanhamento pós-viagem; recorrência mensal', $4, 'ativa') ON CONFLICT DO NOTHING RETURNING id_oportunidade",
           [v.id_cliente, v.id_viagem, Number(v.ciclo) + 1, due]
