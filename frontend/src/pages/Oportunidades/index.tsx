@@ -77,6 +77,10 @@ export default function Oportunidades() {
         dataCriacao: op.data_geracao ? op.data_geracao.slice(0, 10) : '',
         ultimoContato: 'Sem contato',
         contatoSugerido: op.tipo_origem === 'pos_viagem' ? 'WhatsApp pós-viagem' : 'Ligação comercial',
+        formaPagamento: op.forma_pagamento,
+        totalParcelas: op.total_parcelas,
+        dataQuitacao: op.data_quitacao,
+        statusPagamento: op.status_pagamento,
         paisesInteresse: extrairPaises(op.interesses),
       }));
       setOportunidades(listaMapeada);

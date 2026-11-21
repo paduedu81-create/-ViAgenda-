@@ -8,6 +8,10 @@ export interface Oportunidade {
   prioridade: 'ALTA' | 'MEDIA' | 'BAIXA';
   status: 'Aberta' | 'Em andamento' | 'Concluída' | 'Encerrada';
   dataCriacao: string;
+  formaPagamento?: string | null;
+  totalParcelas?: number | null;
+  dataQuitacao?: string | null;
+  statusPagamento?: string | null;
   ultimoContato: string;
   contatoSugerido: string;
   // países de interesse do cliente (sem repetição), usados no filtro da tela de oportunidades
@@ -40,4 +44,8 @@ export interface OportunidadeApi {
   data_retorno: string | null;
   nome_destino: string | null;
   interesses?: InteresseApi[] | null;
+  forma_pagamento?: string | null;
+  total_parcelas?: number | null;
+  data_quitacao?: string | null;
+  status_pagamento?: string | null;
 }

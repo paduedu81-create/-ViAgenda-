@@ -25,6 +25,10 @@ router.get(
         c.email,
         v.data_retorno,
         d.nome_destino,
+        p.forma_pagamento,
+        (SELECT count(*)::int FROM parcela_pagamento pp WHERE pp.id_pagamento = p.id_pagamento) AS total_parcelas,
+        coalesce(p.data_quitacao, (SELECT max(pp.data_pagamento) FROM parcela_pagamento pp WHERE pp.id_pagamento = p.id_pagamento AND pp.status_parcela = 'pago')) AS data_quitacao,
+        p.status_pagamento,
         (
           SELECT coalesce(json_agg(
             json_build_object(
@@ -42,6 +46,7 @@ router.get(
       JOIN cliente c USING(id_cliente)
       LEFT JOIN viagem v ON v.id_viagem=o.id_viagem_referencia
       LEFT JOIN destino d ON d.id_destino=v.id_destino
+      LEFT JOIN pagamento p ON p.id_viagem = v.id_viagem
       WHERE ($1::text IS NULL OR o.status_oportunidade=$1)
         AND ($2='' OR c.nome_cliente ILIKE $3)
       ORDER BY o.data_geracao DESC`,

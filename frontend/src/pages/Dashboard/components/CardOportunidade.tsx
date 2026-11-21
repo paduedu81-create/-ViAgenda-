@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { api } from '../../../services/api';
 import { formatarDataBR } from '../../../utils/formatters';
 import type { Oportunidade } from '../../Oportunidades/oportunidades.types';
+import { CreditCard } from 'lucide-react';
 
 interface CardOportunidadeProps {
   oportunidade: Oportunidade;
@@ -171,6 +172,38 @@ export function CardOportunidade({
     }
   }
 
+  // formata a condição de pagamento e quitação da viagem
+  function renderCondicoesPagamento() {
+    if (!oportunidade.formaPagamento && !oportunidade.dataQuitacao) {
+      return null;
+    }
+
+    let textoCondicao = oportunidade.formaPagamento || 'Pagamento';
+    if (oportunidade.totalParcelas && oportunidade.totalParcelas > 1) {
+      textoCondicao = `${oportunidade.totalParcelas}x no ${oportunidade.formaPagamento || 'Boleto'}`;
+    } else if (oportunidade.totalParcelas === 1) {
+      textoCondicao = `À vista no ${oportunidade.formaPagamento || 'PIX'}`;
+    }
+
+    const estaQuitado = oportunidade.statusPagamento === 'quitado' || Boolean(oportunidade.dataQuitacao);
+    const textoQuitacao = oportunidade.dataQuitacao
+      ? `Quitado em ${formatarDataBR(oportunidade.dataQuitacao)}`
+      : estaQuitado
+        ? 'Quitado'
+        : 'Em aberto';
+
+    return (
+      <div className="flex items-center gap-1.5 mt-2 text-xs bg-slate-50 border border-slate-200/90 rounded-lg px-2.5 py-1 w-fit">
+        <CreditCard size={13} className="text-slate-500 shrink-0" />
+        <span className="font-semibold text-slate-800">{textoCondicao}</span>
+        <span className="text-slate-300">•</span>
+        <span className={estaQuitado ? 'text-emerald-700 font-medium' : 'text-amber-700 font-medium'}>
+          {textoQuitacao}
+        </span>
+      </div>
+    );
+  }
+
   const cores = getCoresPrioridade();
 
   return (
@@ -215,17 +248,19 @@ export function CardOportunidade({
             {oportunidade.descricao}
           </p>
 
-        {/* Paises de interesse do cliente */}
-        {oportunidade.paisesInteresse && oportunidade.paisesInteresse.length > 0 && (
-          <div className="flex flex-wrap items-center gap-1.5 mt-2">
-            <span className="text-[11.5px] text-sidebar-text">Interesse em:</span>
-            {oportunidade.paisesInteresse.map((pais) => (
-              <span key={pais} className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-[#e8eefd] text-[#1d4ed8]">
-                {pais}
-              </span>
-            ))}
-          </div>
-        )}
+          {/* Paises de interesse do cliente */}
+          {oportunidade.paisesInteresse && oportunidade.paisesInteresse.length > 0 && (
+            <div className="flex flex-wrap items-center gap-1.5 mt-2">
+              <span className="text-[11.5px] text-sidebar-text">Interesse em:</span>
+              {oportunidade.paisesInteresse.map((pais) => (
+                <span key={pais} className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-[#e8eefd] text-[#1d4ed8]">
+                  {pais}
+                </span>
+              ))}
+            </div>
+          )}
+
+          {renderCondicoesPagamento()}
 
           <div className="text-xs text-slate-400 mt-2">
             Último contato: {oportunidade.ultimoContato}
@@ -295,8 +330,8 @@ export function CardOportunidade({
                   type="button"
                   onClick={() => setCanalSelecionado(opcao)}
                   className={`rounded-lg border px-3 py-2 text-xs font-semibold cursor-pointer ${canalSelecionado === opcao
-                      ? 'border-blue-600 bg-blue-50 text-blue-700'
-                      : 'border-slate-200 text-slate-700 hover:border-slate-300'
+                    ? 'border-blue-600 bg-blue-50 text-blue-700'
+                    : 'border-slate-200 text-slate-700 hover:border-slate-300'
                     }`}
                 >
                   {opcao}
