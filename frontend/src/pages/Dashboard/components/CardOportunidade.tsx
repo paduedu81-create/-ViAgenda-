@@ -4,6 +4,7 @@ import { api } from '../../../services/api';
 import { formatarDataBR } from '../../../utils/formatters';
 import type { Oportunidade } from '../../Oportunidades/oportunidades.types';
 import { CreditCard } from 'lucide-react';
+import ModalRegistrarContato from '../../../components/modals/ModalRegistrarContato';
 
 interface CardOportunidadeProps {
   oportunidade: Oportunidade;
@@ -21,11 +22,6 @@ export function CardOportunidade({
   // estados dos modais da tela
   const [modalContatoAberto, setModalContatoAberto] = useState(false);
   const [modalEncerrarAberto, setModalEncerrarAberto] = useState(false);
-
-  // campos para registrar contato
-  const [canalSelecionado, setCanalSelecionado] = useState('');
-  const [salvandoContato, setSalvandoContato] = useState(false);
-  const [erroContato, setErroContato] = useState('');
 
   // estado para encerramento
   const [salvandoEncerramento, setSalvandoEncerramento] = useState(false);
@@ -97,53 +93,6 @@ export function CardOportunidade({
   // vai para a pagina do cliente
   function irParaCliente() {
     navigate(`/clientes/${oportunidade.clienteId}`);
-  }
-
-  // salva o contato na api
-  async function salvarContato() {
-    if (!canalSelecionado) return;
-
-    setSalvandoContato(true);
-    setErroContato('');
-
-    try {
-      await api(`/contatos/${oportunidade.id}/registrar`, {
-        method: 'POST',
-        body: JSON.stringify({
-          id_cliente: oportunidade.clienteId,
-          canal: canalSelecionado,
-          mensagem: `Contato realizado via ${canalSelecionado}.`,
-          resultado: 'Contato feito',
-        }),
-      });
-
-      setContatoFeito(true);
-
-      // salva no localstorage para lembrar que foi feito
-      const historicoAtual = localStorage.getItem('@viagenda:contatos-feitos');
-      let listaIds: string[] = [];
-      if (historicoAtual) {
-        listaIds = JSON.parse(historicoAtual);
-      }
-      if (!listaIds.includes(String(oportunidade.id))) {
-        listaIds.push(String(oportunidade.id));
-      }
-      localStorage.setItem('@viagenda:contatos-feitos', JSON.stringify(listaIds));
-
-      setModalContatoAberto(false);
-
-      if (onRegistrarContato) {
-        onRegistrarContato(oportunidade.id);
-      }
-    } catch (err: unknown) {
-      if (err instanceof Error) {
-        setErroContato(err.message);
-      } else {
-        setErroContato('Não foi possível registrar o contato.');
-      }
-    } finally {
-      setSalvandoContato(false);
-    }
   }
 
   // encerra a oportunidade chamando o backend
@@ -314,56 +263,27 @@ export function CardOportunidade({
 
       {/* modal para registrar novo contato */}
       {modalContatoAberto && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
-            <h3 className="text-base font-bold text-slate-900">
-              Registrar contato
-            </h3>
-            <p className="mt-1 text-xs text-slate-500">
-              Como o contato com {oportunidade.nomeCliente} foi realizado?
-            </p>
-
-            <div className="mt-4 grid grid-cols-2 gap-2">
-              {['WhatsApp', 'E-mail', 'Telefone', 'Presencial'].map((opcao) => (
-                <button
-                  key={opcao}
-                  type="button"
-                  onClick={() => setCanalSelecionado(opcao)}
-                  className={`rounded-lg border px-3 py-2 text-xs font-semibold cursor-pointer ${canalSelecionado === opcao
-                    ? 'border-blue-600 bg-blue-50 text-blue-700'
-                    : 'border-slate-200 text-slate-700 hover:border-slate-300'
-                    }`}
-                >
-                  {opcao}
-                </button>
-              ))}
-            </div>
-
-            {erroContato && (
-              <p className="mt-3 text-xs text-rose-600 font-medium">
-                {erroContato}
-              </p>
-            )}
-
-            <div className="mt-6 flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setModalContatoAberto(false)}
-                className="rounded-lg border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 cursor-pointer"
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                onClick={salvarContato}
-                disabled={!canalSelecionado || salvandoContato}
-                className="rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-50 cursor-pointer"
-              >
-                {salvandoContato ? 'Salvando...' : 'Confirmar contato'}
-              </button>
-            </div>
-          </div>
-        </div>
+        <ModalRegistrarContato
+          isOpen={modalContatoAberto}
+          onClose={() => setModalContatoAberto(false)}
+          onSucesso={() => {
+            setContatoFeito(true);
+            try {
+              const historicoAtual = localStorage.getItem('@viagenda:contatos-feitos');
+              const listaIds: string[] = historicoAtual ? JSON.parse(historicoAtual) : [];
+              if (!listaIds.includes(String(oportunidade.id))) {
+                listaIds.push(String(oportunidade.id));
+                localStorage.setItem('@viagenda:contatos-feitos', JSON.stringify(listaIds));
+              }
+            } catch {
+              // ignora erro no localstorage
+            }
+            if (onRegistrarContato) onRegistrarContato(oportunidade.id);
+          }}
+          clienteId={Number(oportunidade.clienteId)}
+          clienteNome={oportunidade.nomeCliente}
+          oportunidadeId={Number(oportunidade.id)}
+        />
       )}
 
       {/* modal para confirmar encerramento */}

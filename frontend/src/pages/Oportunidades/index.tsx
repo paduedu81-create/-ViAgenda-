@@ -221,7 +221,8 @@ export default function Oportunidades() {
             <CardOportunidade
               key={op.id}
               oportunidade={op}
-              onRegistrarContato={(id) => console.log('registrar contato', id)}
+              onRegistrarContato={() => setRecarregar((r) => r + 1)}
+              onEncerrarOportunidade={() => setRecarregar((r) => r + 1)}
             />
           ))
         ) : (

@@ -13,8 +13,20 @@ const schema = z.object({
   canal: z.enum(['WhatsApp', 'Telefone', 'E-mail', 'Presencial']),
   mensagem: z.string().min(1).max(5000),
   resultado: z.string().max(500).nullable().optional(),
+  reagendar_dias: z.number().optional(),
+  data_reagendamento: z.string().optional(),
+  encerrar_oportunidade: z.boolean().optional(),
+  nova_venda: z.object({
+    id_destino: z.number().int().positive().optional().nullable(),
+    nome_destino: z.string().optional().nullable(),
+    data_ida: z.string().optional(),
+    data_retorno: z.string().optional(),
+    valor_total: z.number().nonnegative().optional(),
+  }).optional(),
   data_contato: z.string().datetime().optional(),
 });
+
+type ContatoPayload = z.infer<typeof schema>;
 
 router.get(
   '/',
@@ -27,6 +39,73 @@ router.get(
     res.json(r.rows);
   })
 );
+
+// executa acoes de reagendamento, encerramento de oportunidade e nova venda
+async function processarAcoesAposContato(
+  idCliente: number,
+  idOportunidade: number | null,
+  b: ContatoPayload
+) {
+  // se solicitou encerramento, fecha a oportunidade atual
+  if (b.encerrar_oportunidade && idOportunidade) {
+    await query(
+      "UPDATE oportunidade SET status_oportunidade = 'encerrada', data_encerramento = now() WHERE id_oportunidade = $1",
+      [idOportunidade]
+    );
+  }
+
+  // calcula data de reagendamento comercial (ex: +30, +60, +90 dias ou data no calendario)
+  let dataReagendada: string | null = null;
+  if (b.data_reagendamento) {
+    dataReagendada = b.data_reagendamento;
+  } else if (b.reagendar_dias && b.reagendar_dias > 0) {
+    const d = new Date();
+    d.setDate(d.getDate() + Number(b.reagendar_dias));
+    dataReagendada = d.toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
+  }
+
+  // aplica o reagendamento comercial
+  if (dataReagendada) {
+    if (b.encerrar_oportunidade || !idOportunidade) {
+      // cria novo gatilho comercial programado para a data futura
+      await query(
+        "INSERT INTO oportunidade(id_cliente, tipo_origem, descricao, data_proximo_contato, status_oportunidade) VALUES($1, 'manual', $2, $3, 'ativa')",
+        [idCliente, `Retorno comercial programado: ${b.resultado || 'Acompanhamento'}`, dataReagendada]
+      );
+    } else {
+      // atualiza a data de proximo contato na oportunidade existente
+      await query(
+        "UPDATE oportunidade SET data_proximo_contato = $1, status_oportunidade = 'em_andamento' WHERE id_oportunidade = $2",
+        [dataReagendada, idOportunidade]
+      );
+    }
+  }
+
+  // se o cliente contratou uma nova viagem no atendimento, registra imediatamente
+  if (b.nova_venda && (b.nova_venda.id_destino || b.nova_venda.nome_destino)) {
+    let idDestino = b.nova_venda.id_destino;
+    if (!idDestino && b.nova_venda.nome_destino) {
+      const dest = await query(
+        'INSERT INTO destino(nome_destino) VALUES($1) RETURNING id_destino',
+        [b.nova_venda.nome_destino]
+      );
+      idDestino = dest.rows[0]?.id_destino || null;
+    }
+
+    if (idDestino) {
+      await query(
+        "INSERT INTO viagem(id_cliente, id_destino, data_ida, data_retorno, valor_total, tipo_viagem, status_viagem) VALUES($1, $2, coalesce($3::date, CURRENT_DATE + 30), coalesce($4::date, CURRENT_DATE + 37), coalesce($5, 0), 'nacional', 'confirmada')",
+        [
+          idCliente,
+          idDestino,
+          b.nova_venda.data_ida || null,
+          b.nova_venda.data_retorno || null,
+          b.nova_venda.valor_total || 0,
+        ]
+      );
+    }
+  }
+}
 
 router.post(
   '/',
@@ -45,6 +124,9 @@ router.post(
         b.data_contato || null,
       ]
     );
+
+    await processarAcoesAposContato(b.id_cliente, b.id_oportunidade || null, b);
+
     res.status(201).json(r.rows[0]);
   })
 );
@@ -91,6 +173,9 @@ router.post(
         b.data_contato || null,
       ]
     );
+
+    await processarAcoesAposContato(idCliente, idOportunidade, b);
+
     res.status(201).json(r.rows[0]);
   })
 );

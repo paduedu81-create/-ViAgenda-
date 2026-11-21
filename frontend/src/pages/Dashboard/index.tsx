@@ -5,7 +5,7 @@ import CardProximosContatos, { type ProximoContato } from "./components/CardProx
 import MetricCard from "./components/MetricCard";
 import { ArrowRight, Calendar, Target, Users, Activity } from 'lucide-react'
 import { colors } from "../../theme/colors";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { api } from "../../services/api";
 import type { DashboardApiResponse } from "./dashboard.types";
 import type { Oportunidade, OportunidadeApi } from "../Oportunidades/oportunidades.types";
@@ -27,62 +27,68 @@ export default function Dashboard() {
   // estado para as oportunidades reais do dia (substitui oportunidadesMock)
   const [oportunidades, setOportunidades] = useState<Oportunidade[]>([]);
 
-  const [carregando, setCarregando] = useState<boolean>(false)
+  const [carregando, setCarregando] = useState<boolean>(false);
+
+  // busca os dados do dashboard e as oportunidades ativas
+  const carregarDashboard = useCallback(async () => {
+    try {
+      const [dashData, opData] = await Promise.all([
+        api<DashboardApiResponse>('/dashboard'),
+        api<OportunidadeApi[]>('/oportunidades')
+      ]);
+
+      // atualiza os números das métricas
+      if (dashData?.metricas) {
+        setMetricas(dashData.metricas);
+      }
+
+      // mapeia os próximos contatos
+      const contatosFormatados: ProximoContato[] = (dashData?.proximos_contatos || []).map((c) => {
+        const dataObj = c.data_proximo_contato ? new Date(c.data_proximo_contato) : new Date();
+        const meses = ['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ'];
+        return {
+          id: c.id_oportunidade,
+          nomeCliente: c.nome_cliente,
+          tipo: c.tipo_origem === 'pos_viagem' ? 'Pós-viagem' : c.tipo_origem === 'fim_pagamento' ? 'Fim de pagamento' : 'Acompanhamento',
+          dia: dataObj.getUTCDate(),
+          mes: meses[dataObj.getUTCMonth()],
+          horario: '10:00',
+        };
+      });
+      setProximosContatos(contatosFormatados);
+
+      // mapeia as oportunidades reais da lista
+      const opFormatadas: Oportunidade[] = (opData || [])
+        .filter((o) => o.status_oportunidade !== 'encerrada')
+        .map((o) => ({
+          id: o.id_oportunidade,
+          clienteId: o.id_cliente,
+          iniciais: (o.nome_cliente || 'CL').slice(0, 2).toUpperCase(),
+          nomeCliente: o.nome_cliente,
+          tipo: o.tipo_origem === 'pos_viagem' ? 'Pós-viagem' : o.tipo_origem === 'fim_pagamento' ? 'Fim de pagamento' : 'Acompanhamento',
+          descricao: o.descricao || '',
+          formaPagamento: o.forma_pagamento,
+          totalParcelas: o.total_parcelas,
+          dataQuitacao: o.data_quitacao,
+          statusPagamento: o.status_pagamento,
+          prioridade: o.tipo_origem === 'pos_viagem' ? 'ALTA' : 'MEDIA',
+          status: o.status_oportunidade === 'ativa' ? 'Aberta' : 'Em andamento',
+          dataCriacao: o.data_geracao ? o.data_geracao.slice(0, 10) : '',
+          ultimoContato: 'Sem contato',
+          contatoSugerido: o.tipo_origem === 'pos_viagem' ? 'WhatsApp pós-viagem' : 'Ligação comercial',
+        }));
+      setOportunidades(opFormatadas);
+    } catch (err) {
+      console.error('erro ao carregar dashboard:', err);
+    } finally {
+      setCarregando(false);
+    }
+  }, []);
 
   useEffect(() => {
     setCarregando(true);
-
-    Promise.all([
-      api<DashboardApiResponse>('/dashboard'),
-      api<OportunidadeApi[]>('/oportunidades')
-    ])
-      .then(([dashData, opData]) => {
-
-        // atualiza os números das métricas
-        if (dashData?.metricas) {
-          setMetricas(dashData.metricas);
-        }
-
-        // mapeia os próximos contatos
-        const contatosFormatados: ProximoContato[] = (dashData?.proximos_contatos || []).map((c) => {
-          const dataObj = c.data_proximo_contato ? new Date(c.data_proximo_contato) : new Date();
-          const meses = ['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ'];
-          return {
-            id: c.id_oportunidade,
-            nomeCliente: c.nome_cliente,
-            tipo: c.tipo_origem === 'pos_viagem' ? 'Pós-viagem' : c.tipo_origem === 'fim_pagamento' ? 'Fim de pagamento' : 'Acompanhamento',
-            dia: dataObj.getUTCDate(),
-            mes: meses[dataObj.getUTCMonth()],
-            horario: '10:00',
-          };
-        });
-        setProximosContatos(contatosFormatados);
-
-        // 3. Mapeia as oportunidades reais da lista
-        const opFormatadas: Oportunidade[] = (opData || [])
-          .filter((o) => o.status_oportunidade !== 'encerrada')
-          .map((o) => ({
-            id: o.id_oportunidade,
-            clienteId: o.id_cliente,
-            iniciais: (o.nome_cliente || 'CL').slice(0, 2).toUpperCase(),
-            nomeCliente: o.nome_cliente,
-            tipo: o.tipo_origem === 'pos_viagem' ? 'Pós-viagem' : o.tipo_origem === 'fim_pagamento' ? 'Fim de pagamento' : 'Acompanhamento',
-            descricao: o.descricao || '',
-            formaPagamento: o.forma_pagamento,
-            totalParcelas: o.total_parcelas,
-            dataQuitacao: o.data_quitacao,
-            statusPagamento: o.status_pagamento,
-            prioridade: o.tipo_origem === 'pos_viagem' ? 'ALTA' : 'MEDIA',
-            status: o.status_oportunidade === 'ativa' ? 'Aberta' : 'Em andamento',
-            dataCriacao: o.data_geracao ? o.data_geracao.slice(0, 10) : '',
-            ultimoContato: 'Sem contato',
-            contatoSugerido: o.tipo_origem === 'pos_viagem' ? 'WhatsApp pós-viagem' : 'Ligação comercial',
-          }));
-        setOportunidades(opFormatadas);
-      })
-      .catch((err) => console.error('erro ao carregar dashboard:', err))
-      .finally(() => setCarregando(false));
-  }, []);
+    carregarDashboard();
+  }, [carregarDashboard]);
 
   // remove a oportunidade encerrada da fila de hoje e atualiza contador
   function handleEncerrarOportunidade(id: string | number) {
@@ -171,6 +177,7 @@ export default function Dashboard() {
                 <CardOportunidade
                   key={op.id}
                   oportunidade={op}
+                  onRegistrarContato={carregarDashboard}
                   onEncerrarOportunidade={handleEncerrarOportunidade}
                 />
               ))

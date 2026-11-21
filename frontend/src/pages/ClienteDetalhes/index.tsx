@@ -1,5 +1,5 @@
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, UserX, Phone, Mail, User, Plus, Plane, CreditCard, Star, X } from 'lucide-react';
+import { ArrowLeft, UserX, Phone, Mail, User, Plus, Plane, CreditCard, Star } from 'lucide-react';
 import { extrairIniciais, calcularDiasAtras, formatarDataBR } from '../../utils/formatters';
 import { useState, useEffect, useCallback } from 'react';
 import { api } from '../../services/api';
@@ -13,6 +13,7 @@ import type {
   InteresseItem,
 } from '../Clientes/clientes.types';
 import type { OportunidadeApi } from '../Oportunidades/oportunidades.types';
+import ModalRegistrarContato from '../../components/modals/ModalRegistrarContato';
 
 type AbaDetalhes = 'visao360' | 'historico' | 'viagens' | 'contatos';
 
@@ -101,11 +102,6 @@ export default function ClienteDetalhes() {
 
   // estado para modal de registrar contato
   const [modalContato, setModalContato] = useState(false);
-  const [canalContato, setCanalContato] = useState<'WhatsApp' | 'Telefone' | 'E-mail' | 'Presencial'>('WhatsApp');
-  const [mensagemContato, setMensagemContato] = useState('');
-  const [resultadoContato, setResultadoContato] = useState('');
-  const [salvandoContato, setSalvandoContato] = useState(false);
-  const [erroContato, setErroContato] = useState('');
 
   // busca os dados reais do cliente e suas oportunidades na api
   const carregarCliente = useCallback(async () => {
@@ -178,38 +174,6 @@ export default function ClienteDetalhes() {
   useEffect(() => {
     carregarCliente();
   }, [carregarCliente]);
-
-  // submete novo contato diretamente para a api
-  const handleRegistrarContato = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!id || !canalContato) return;
-
-    setSalvandoContato(true);
-    setErroContato('');
-
-    try {
-      await api('/contatos', {
-        method: 'POST',
-        body: JSON.stringify({
-          id_cliente: Number(id),
-          canal: canalContato,
-          mensagem: mensagemContato.trim() || `Contato realizado via ${canalContato}.`,
-          resultado: resultadoContato.trim() || null,
-        }),
-      });
-
-      setModalContato(false);
-      setMensagemContato('');
-      setResultadoContato('');
-      await carregarCliente();
-    } catch (err: unknown) {
-      setErroContato(
-        err instanceof Error ? err.message : 'Falha ao registrar contato'
-      );
-    } finally {
-      setSalvandoContato(false);
-    }
-  };
 
   // encerra a oportunidade ativa do cliente chamando o backend
   async function handleEncerrarOportunidade() {
@@ -610,95 +574,14 @@ export default function ClienteDetalhes() {
 
       {/* modal de registrar novo contato */}
       {modalContato && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4"
-          role="presentation"
-          onMouseDown={(e) => {
-            if (e.target === e.currentTarget) setModalContato(false);
-          }}
-        >
-          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <h3 className="text-base font-bold text-slate-900">Registrar contato</h3>
-              <button
-                type="button"
-                onClick={() => setModalContato(false)}
-                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg"
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            <form onSubmit={handleRegistrarContato} className="mt-4 flex flex-col gap-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                  Canal utilizado
-                </label>
-                <div className="grid grid-cols-2 gap-2">
-                  {(['WhatsApp', 'Telefone', 'E-mail', 'Presencial'] as const).map((opcao) => (
-                    <button
-                      key={opcao}
-                      type="button"
-                      onClick={() => setCanalContato(opcao)}
-                      className={`rounded-xl border px-3 py-2 text-xs font-semibold transition-all cursor-pointer ${canalContato === opcao
-                        ? 'border-brand-primary bg-blue-50 text-brand-primary'
-                        : 'border-slate-200 text-slate-600 hover:border-slate-300'
-                        }`}
-                    >
-                      {opcao}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                  Mensagem / Resumo do contato
-                </label>
-                <textarea
-                  required
-                  rows={3}
-                  value={mensagemContato}
-                  onChange={(e) => setMensagemContato(e.target.value)}
-                  placeholder="Ex: Cliente elogiou a viagem e planeja férias para o final do ano."
-                  className="w-full rounded-xl border border-slate-200 p-3 text-xs text-slate-700 focus:outline-none focus:border-brand-primary focus:ring-1 focus:ring-brand-primary"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                  Resultado (opcional)
-                </label>
-                <input
-                  type="text"
-                  value={resultadoContato}
-                  onChange={(e) => setResultadoContato(e.target.value)}
-                  placeholder="Ex: Interessado, Aguardando cotação, Sem interesse"
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs text-slate-700 focus:outline-none focus:border-brand-primary focus:ring-1 focus:ring-brand-primary"
-                />
-              </div>
-
-              {erroContato && <p className="text-xs text-red-600">{erroContato}</p>}
-
-              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setModalContato(false)}
-                  className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50 cursor-pointer"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={salvandoContato}
-                  className="px-4 py-2 rounded-xl bg-brand-primary text-white text-xs font-semibold hover:bg-brand-primary-hover transition-colors disabled:opacity-50 cursor-pointer"
-                >
-                  {salvandoContato ? 'Salvando...' : 'Salvar contato'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+        <ModalRegistrarContato
+          isOpen={modalContato}
+          onClose={() => setModalContato(false)}
+          onSucesso={carregarCliente}
+          clienteId={Number(id)}
+          clienteNome={cliente?.name}
+          oportunidadeId={oportunidadeAtiva?.id_oportunidade}
+        />
       )}
 
       {/* modal de confirmar encerramento da oportunidade do cliente */}
