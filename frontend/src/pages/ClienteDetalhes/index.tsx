@@ -142,7 +142,33 @@ export default function ClienteDetalhes() {
             ? 'media'
             : 'none';
 
-      const ultimaViagemNome = listaViagens[0]?.destino || null;
+      // separa viagens passadas e futuras para exibir corretamente
+      const hojeStr = new Date().toISOString().slice(0, 10);
+      const viagensPassadas = listaViagens
+        .filter((v) => v.status_viagem !== 'cancelada' && String(v.data_retorno).slice(0, 10) < hojeStr)
+        .sort((a, b) => String(b.data_retorno).localeCompare(String(a.data_retorno)));
+      const viagensFuturas = listaViagens
+        .filter((v) => v.status_viagem !== 'cancelada' && String(v.data_ida).slice(0, 10) >= hojeStr)
+        .sort((a, b) => String(a.data_ida).localeCompare(String(b.data_ida)));
+
+      const ultimaViagemNome = viagensPassadas[0]?.destino || (viagensFuturas.length === 0 ? listaViagens[0]?.destino : null) || null;
+      const proximaViagemNome = viagensFuturas[0]?.destino || null;
+
+      // localiza a condicao de pagamento mais relevante (da oportunidade ativa ou da viagem mais recente)
+      const viagemRelevante = viagensFuturas[0] || viagensPassadas[0] || listaViagens[0];
+      let condicaoPagamentoTexto: string | null = null;
+      let dataQuitacaoTexto: string | null = null;
+
+      if (opAtiva?.forma_pagamento) {
+        const parcelasStr = opAtiva.total_parcelas ? `${opAtiva.total_parcelas}x` : '';
+        condicaoPagamentoTexto = parcelasStr ? `${opAtiva.forma_pagamento} (${parcelasStr})` : opAtiva.forma_pagamento;
+        dataQuitacaoTexto = opAtiva.data_quitacao ? String(opAtiva.data_quitacao).slice(0, 10) : null;
+      } else if (viagemRelevante?.forma_pagamento) {
+        const parcelasStr = viagemRelevante.total_parcelas ? `${viagemRelevante.total_parcelas}x` : '';
+        condicaoPagamentoTexto = parcelasStr ? `${viagemRelevante.forma_pagamento} (${parcelasStr})` : viagemRelevante.forma_pagamento;
+        dataQuitacaoTexto = viagemRelevante.data_quitacao ? String(viagemRelevante.data_quitacao).slice(0, 10) : null;
+      }
+
       const ultimoContatoData = listaContatos[0]?.data_contato
         ? String(listaContatos[0].data_contato).slice(0, 10)
         : 'Sem contato';
@@ -155,7 +181,9 @@ export default function ClienteDetalhes() {
         profile: (dataCli.perfil as PerfilCliente) || 'Família',
         totalTrips: listaViagens.length,
         lastTrip: ultimaViagemNome,
-        nextTrip: null,
+        nextTrip: proximaViagemNome,
+        paymentCondition: condicaoPagamentoTexto,
+        paymentQuitacao: dataQuitacaoTexto,
         lastContact: ultimoContatoData,
         priority: prioridade,
         opportunity: opAtiva ? opAtiva.descricao || 'Oportunidade identificada' : null,
@@ -376,8 +404,8 @@ export default function ClienteDetalhes() {
 
         <hr className="my-6 border-t border-slate-100" />
 
-        {/* 5 métricas em destaque */}
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 text-center">
+        {/* 6 métricas em destaque */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 text-center">
           <div className="flex flex-col">
             <span className="text-base font-bold text-slate-900">{cliente.totalTrips}</span>
             <span className="text-xs text-slate-400 mt-0.5">Viagens realizadas</span>
@@ -391,11 +419,19 @@ export default function ClienteDetalhes() {
             <span className="text-xs text-slate-400 mt-0.5">Próxima viagem</span>
           </div>
           <div className="flex flex-col">
+            <span className="text-base font-bold text-slate-900">{cliente.paymentCondition || '—'}</span>
+            <span className="text-xs text-slate-400 mt-0.5">
+              {cliente.paymentQuitacao ? `Quitação: ${formatarDataBR(cliente.paymentQuitacao)}` : 'Condição pagamento'}
+            </span>
+          </div>
+          <div className="flex flex-col">
             <span className="text-base font-bold text-slate-900">{calcularDiasAtras(cliente.lastContact)}</span>
             <span className="text-xs text-slate-400 mt-0.5">Último contato</span>
           </div>
           <div className="flex flex-col">
-            <span className="text-base font-bold text-slate-900">{cliente.opportunity || '—'}</span>
+            <span className="text-base font-bold text-slate-900 truncate" title={cliente.opportunity || ''}>
+              {cliente.opportunity || '—'}
+            </span>
             <span className="text-xs text-slate-400 mt-0.5">Oportunidade</span>
           </div>
         </div>

@@ -21,7 +21,11 @@ const schema = z.object({
     nome_destino: z.string().optional().nullable(),
     data_ida: z.string().optional(),
     data_retorno: z.string().optional(),
-    valor_total: z.number().nonnegative().optional(),
+    valor_total: z.number().positive(),
+    forma_pagamento: z.string().min(2), // ex: 'Boleto', 'Cartão de Crédito', 'Pix'
+    total_parcelas: z.number().int().min(1).max(24).default(1),
+    entrada_paga: z.boolean().optional().default(false), // true se 1+Nx
+    tipo_condicao: z.enum(['a_vista', '1_mais_10', 'direto_cartao', 'personalizado']).optional(), // <- adicione esta linha
   }).optional(),
   data_contato: z.string().datetime().optional(),
 });
@@ -40,13 +44,13 @@ router.get(
   })
 );
 
-// executa acoes de reagendamento, encerramento de oportunidade e nova venda
+// executa acoes de reagendamento, encerramento de oportunidade e lancamento financeiro de nova venda
 async function processarAcoesAposContato(
   idCliente: number,
   idOportunidade: number | null,
   b: ContatoPayload
 ) {
-  // se solicitou encerramento, fecha a oportunidade atual
+  // 1. se solicitou encerramento, fecha a oportunidade atual
   if (b.encerrar_oportunidade && idOportunidade) {
     await query(
       "UPDATE oportunidade SET status_oportunidade = 'encerrada', data_encerramento = now() WHERE id_oportunidade = $1",
@@ -54,7 +58,7 @@ async function processarAcoesAposContato(
     );
   }
 
-  // calcula data de reagendamento comercial (ex: +30, +60, +90 dias ou data no calendario)
+  // 2. calcula data de reagendamento comercial (ex: +30, +60, +90 dias ou data no calendario)
   let dataReagendada: string | null = null;
   if (b.data_reagendamento) {
     dataReagendada = b.data_reagendamento;
@@ -67,13 +71,11 @@ async function processarAcoesAposContato(
   // aplica o reagendamento comercial
   if (dataReagendada) {
     if (b.encerrar_oportunidade || !idOportunidade) {
-      // cria novo gatilho comercial programado para a data futura
       await query(
         "INSERT INTO oportunidade(id_cliente, tipo_origem, descricao, data_proximo_contato, status_oportunidade) VALUES($1, 'manual', $2, $3, 'ativa')",
         [idCliente, `Retorno comercial programado: ${b.resultado || 'Acompanhamento'}`, dataReagendada]
       );
     } else {
-      // atualiza a data de proximo contato na oportunidade existente
       await query(
         "UPDATE oportunidade SET data_proximo_contato = $1, status_oportunidade = 'em_andamento' WHERE id_oportunidade = $2",
         [dataReagendada, idOportunidade]
@@ -81,28 +83,93 @@ async function processarAcoesAposContato(
     }
   }
 
-  // se o cliente contratou uma nova viagem no atendimento, registra imediatamente
+  // 3. registro completo da nova venda e geracao automatica de parcelas financeiras
   if (b.nova_venda && (b.nova_venda.id_destino || b.nova_venda.nome_destino)) {
     let idDestino = b.nova_venda.id_destino;
     if (!idDestino && b.nova_venda.nome_destino) {
-      const dest = await query(
-        'INSERT INTO destino(nome_destino) VALUES($1) RETURNING id_destino',
-        [b.nova_venda.nome_destino]
+      // busca se o destino ja existe ou insere novo
+      const buscaDestino = await query(
+        'SELECT id_destino FROM destino WHERE lower(nome_destino) = lower($1) LIMIT 1',
+        [b.nova_venda.nome_destino.trim()]
       );
-      idDestino = dest.rows[0]?.id_destino || null;
+
+      if (buscaDestino.rows[0]) {
+        idDestino = buscaDestino.rows[0].id_destino;
+      } else {
+        const novoDest = await query(
+          'INSERT INTO destino(nome_destino) VALUES($1) RETURNING id_destino',
+          [b.nova_venda.nome_destino.trim()]
+        );
+        idDestino = novoDest.rows[0]?.id_destino || null;
+      }
     }
 
     if (idDestino) {
-      await query(
-        "INSERT INTO viagem(id_cliente, id_destino, data_ida, data_retorno, valor_total, tipo_viagem, status_viagem) VALUES($1, $2, coalesce($3::date, CURRENT_DATE + 30), coalesce($4::date, CURRENT_DATE + 37), coalesce($5, 0), 'nacional', 'confirmada')",
+      const valorTotal = Number(b.nova_venda.valor_total) || 0;
+      const totalParcelas = Math.max(1, Number(b.nova_venda.total_parcelas) || 1);
+      const formaPagamento = b.nova_venda.forma_pagamento || 'Boleto';
+      const isEntradaMaisN = b.nova_venda.tipo_condicao === '1_mais_10';
+
+      // insere a nova viagem
+      const viagemRes = await query(
+        `INSERT INTO viagem(id_cliente, id_destino, data_ida, data_retorno, valor_total, tipo_viagem, status_viagem)
+         VALUES($1, $2, coalesce($3::date, CURRENT_DATE + 60), coalesce($4::date, CURRENT_DATE + 67), $5, 'nacional', 'confirmada')
+         RETURNING id_viagem`,
         [
           idCliente,
           idDestino,
           b.nova_venda.data_ida || null,
           b.nova_venda.data_retorno || null,
-          b.nova_venda.valor_total || 0,
+          valorTotal,
         ]
       );
+      const idViagem = viagemRes.rows[0].id_viagem;
+
+      // calcula data prevista da ultima parcela para a quitacao
+      const dataQuitacaoPrevista = new Date();
+      dataQuitacaoPrevista.setMonth(dataQuitacaoPrevista.getMonth() + (totalParcelas - 1));
+      const quitacaoFormatada = dataQuitacaoPrevista.toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
+
+      const statusPagamento = totalParcelas === 1 && formaPagamento === 'Pix' ? 'quitado' : 'pendente';
+
+      // insere o cabecalho de pagamento
+      const pagRes = await query(
+        `INSERT INTO pagamento(id_viagem, valor_total_pagamento, status_pagamento, forma_pagamento, data_quitacao)
+         VALUES($1, $2, $3, $4, $5) RETURNING id_pagamento`,
+        [
+          idViagem,
+          valorTotal,
+          statusPagamento,
+          formaPagamento,
+          statusPagamento === 'quitado' ? new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' }) : quitacaoFormatada,
+        ]
+      );
+      const idPagamento = pagRes.rows[0].id_pagamento;
+
+      // gera as parcelas mensais proporcionais
+      const valorParcela = parseFloat((valorTotal / totalParcelas).toFixed(2));
+      for (let i = 1; i <= totalParcelas; i++) {
+        const dataVenc = new Date();
+        dataVenc.setMonth(dataVenc.getMonth() + (i - 1));
+        const vencFormatado = dataVenc.toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
+
+        // se for entrada (1+Nx) ou a vista pago via Pix, parcela 1 nasce como 'pago'
+        const isPrimeiraPaga = (i === 1 && (isEntradaMaisN || statusPagamento === 'quitado'));
+        const statusParcela = isPrimeiraPaga ? 'pago' : 'pendente';
+
+        await query(
+          `INSERT INTO parcela_pagamento(id_pagamento, numero_parcela, valor_parcela, data_vencimento, data_pagamento, status_parcela)
+           VALUES($1, $2, $3, $4, $5, $6)`,
+          [
+            idPagamento,
+            i,
+            valorParcela,
+            vencFormatado,
+            isPrimeiraPaga ? new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' }) : null,
+            statusParcela,
+          ]
+        );
+      }
     }
   }
 }

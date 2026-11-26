@@ -40,6 +40,8 @@ export interface Cliente {
   totalTrips: number;
   lastTrip: string | null;
   nextTrip: string | null;
+  paymentCondition?: string | null;
+  paymentQuitacao?: string | null;
   lastContact: string;
   priority: PrioridadeCliente;
   opportunity: string | null;
@@ -70,6 +72,9 @@ export interface ViagemItem {
   data_retorno: string;
   valor_total: number | string;
   status_viagem: string;
+  forma_pagamento?: string | null;
+  total_parcelas?: number | null;
+  data_quitacao?: string | null;
 }
 // registros de contatos anteriores
 export interface ContatoItem {

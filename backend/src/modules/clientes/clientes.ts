@@ -70,8 +70,22 @@ router.get(
   asyncHandler(async (req, res) => {
     const r = await query(
       `SELECT c.*,
-        (SELECT coalesce(json_agg(json_build_object('id_viagem',v.id_viagem,'id_destino',v.id_destino,'destino',d.nome_destino,'data_ida',v.data_ida,'data_retorno',v.data_retorno,'valor_total',v.valor_total,'status_viagem',v.status_viagem) ORDER BY v.data_ida DESC),'[]')
-         FROM viagem v LEFT JOIN destino d USING(id_destino) WHERE v.id_cliente=c.id_cliente) viagens,
+        (SELECT coalesce(json_agg(json_build_object(
+          'id_viagem', v.id_viagem,
+          'id_destino', v.id_destino,
+          'destino', d.nome_destino,
+          'data_ida', v.data_ida,
+          'data_retorno', v.data_retorno,
+          'valor_total', v.valor_total,
+          'status_viagem', v.status_viagem,
+          'forma_pagamento', p.forma_pagamento,
+          'total_parcelas', (SELECT count(*)::int FROM parcela_pagamento pp WHERE pp.id_pagamento = p.id_pagamento),
+          'data_quitacao', p.data_quitacao
+        ) ORDER BY v.data_ida DESC), '[]')
+         FROM viagem v
+         LEFT JOIN destino d USING(id_destino)
+         LEFT JOIN pagamento p USING(id_viagem)
+         WHERE v.id_cliente=c.id_cliente) viagens,
         (SELECT coalesce(json_agg(json_build_object('id_interesse',i.id_interesse,'id_destino',d.id_destino,'nome_destino',d.nome_destino,'descricao_interesse',i.descricao_interesse) ORDER BY i.data_registro DESC),'[]')
          FROM cliente_interesse i JOIN destino d USING(id_destino) WHERE i.id_cliente=c.id_cliente) interesses,
         (SELECT coalesce(json_agg(ct ORDER BY ct.data_contato DESC),'[]')
